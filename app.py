@@ -18,12 +18,29 @@ def plot_array(image_array, title, color_map, range_pctl):
     color_range = st.slider("Color range", 
                             min_value=float(np.min(image_array)), 
                             max_value=float(np.max(image_array)), 
-                            value=[vmin, vmax])
+                            value=[vmin, vmax],
+                            key=f"{title}_color_range")
     fig = create_plotly_figure(image_array, 
                                 title=title, 
                                 cmap=color_map, 
                                 color_range=color_range)
     st.plotly_chart(fig)
+    
+    
+
+def alpha(wavelength, n0, d, r41):
+    return np.sqrt(3) * np.pi * n0**3 * (d*1e-3) * (r41*1e-12) /(2* wavelength * 1e-9)
+
+def E_ref(wavelength, n0, d, r41):
+    return (wavelength * 1e-9)/(np.sqrt(3) * n0**3 * (d*1e-3) * (r41 * 1e-12))
+
+def cap_array(img_array, min_value, max_value):
+    img_array[img_array < min_value] = min_value
+    img_array[img_array > max_value] = max_value
+    return img_array
+
+def E_field_from_T(T_array, alpha):
+    return np.sqrt(np.arcsin(T_array))/alpha
 
 with st.sidebar:
     crop_range_x = st.slider("Crop range x", min_value=0, max_value=640, value=[5, 635])
@@ -39,6 +56,17 @@ with st.sidebar:
     
     dead_pixel_threshold = st.slider("Dead pixel threshold", min_value=0, max_value=1000, value=100)
     fix_dead_pixels = st.checkbox("Fix dead pixels", value=False)
+    with st.expander("Coefficients"):
+        wavelength = st.number_input("Wavelength (nm)", value=1550.0)
+        n0 = st.number_input("Refractive index", value=2.8)
+        d = st.number_input("Thickness (mm)", value=2.0)
+        r41 = st.number_input("Electro-optic coefficient r41 (1e-12 m/V)", value=5.5)
+        alpha = alpha(wavelength, n0, d, r41)
+        E_ref = E_ref(wavelength, n0, d, r41)
+        st.write(f"Alpha: {alpha:.2e} m/V")
+        st.write(f"E_ref: {E_ref:.2e} V/m")
+        st.write(f"Alpha = pi/(2*E_ref): {np.pi/(2*E_ref):.2e} m/V")
+        st.caption("Values and equations taken from: \n\nCola, A., Dominici, L., & Valletta, A. (2022). Optical Writing and Electro-Optic Imaging of Reversible Space Charges in Semi-Insulating CdTe Diodes. Sensors, 22(4). https://doi.org/10.3390/s22041579")
 
 
 st.title("Pockels Image Analyzer")
@@ -96,7 +124,11 @@ if uploaded_data_files:
         if calib_img_arrays:
             numerator = img_array - calib_cross_on
             denominator = calib_parallel_on - calib_parallel_off
-            denominator[denominator < 1.0] = 1.0
+            # numerator = img_array
+            # denominator = calib_parallel_on
+            denominator[(denominator > 0) & (denominator < 1.0)] = 1.0
+            denominator[(denominator < 0) & (denominator > -1.0)] = -1.0
+            denominator[denominator == 0] = 1.0
             T_array = numerator / denominator
             # Clip transmission values to valid arcsin range
             # T_array[T_array > 1.0] = 0.99
@@ -106,7 +138,16 @@ if uploaded_data_files:
         with st.expander(f"Plot {uploaded_data_file.name}"):
             plot_array(img_array, f"{uploaded_data_file.name}", color_map, range_pctl)
             if calib_img_arrays:
-                plot_array(T_array, f"{uploaded_data_file.name}", color_map, range_pctl)
+                plot_array(denominator, f"Denominator_{uploaded_data_file.name}", color_map, range_pctl)
+                plot_array(numerator, f"Numerator_{uploaded_data_file.name}", color_map, range_pctl)
+                do_cap_array = st.checkbox("Normalize transmission (-1<T<1)", value=True, key=f"do_cap_array_{uploaded_data_file.name}")
+                if do_cap_array:
+                    T_array = cap_array(T_array, 0, 1.0)
+                plot_array(T_array, f"Transmission_{uploaded_data_file.name}", color_map, range_pctl)
+                do_E_field = st.checkbox("Calculate E-field", value=True, key=f"do_E_field_{uploaded_data_file.name}")
+                if do_E_field:
+                    E_field = E_field_from_T(T_array, alpha)
+                    plot_array(E_field, f"E-field_{uploaded_data_file.name}", color_map, range_pctl)
             # # Calculate color range
             # vmin, vmax = np.percentile(array_for_plot, q = range_pctl)
             # color_range = st.slider("Color range", 
