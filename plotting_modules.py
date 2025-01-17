@@ -1,5 +1,6 @@
 import numpy as np
 import plotly.express as px
+import os
 
 
 def create_plotly_figure(img_array, 
@@ -38,3 +39,14 @@ def image_array_statistics(img_array):
     """
     img_array_1D = img_array.flatten()
     return np.mean(img_array_1D), np.std(img_array_1D), np.min(img_array_1D), np.max(img_array_1D)
+
+def save_plotly_figure(fig, filename, save_dir=None):
+    """
+    Save a Plotly figure to a file.
+    """
+    if save_dir is not None:
+        filename = os.path.join(save_dir, filename)
+    if not filename.endswith('.html'):
+        filename = filename + '.html'
+    fig.write_html(filename)
+
