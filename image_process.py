@@ -91,11 +91,11 @@ def crop_image(img_array, crop_range_x, crop_range_y):
     """
     return img_array[crop_range_y[0]:crop_range_y[1], crop_range_x[0]:crop_range_x[1]]
 
-def impute_dead_pixels(img_array, dead_pixels):
+def impute_bad_pixels(img_array, bad_pixels):
     """
-    Impute dead pixels in an image array.
+    Impute bad pixels in an image array.
     """
-    for pixel in dead_pixels:
+    for pixel in bad_pixels:
         x, y = pixel
         # Get values of surrounding pixels in a 3x3 grid, excluding the center pixel
         surrounding_values = []
@@ -122,35 +122,63 @@ def find_dead_pixels(img_array, threshold=100):
     # return dead_pixel_coords
     return dead_pixel_coords
 
+def find_bright_pixels(img_array, threshold=20e3):
+    """
+    Find bright pixels in an image array.
+    """
+    bright_pixels = np.where(img_array > threshold)
+    # Convert array indices to list of (x,y) tuples
+    bright_pixel_coords = list(zip(bright_pixels[1], bright_pixels[0]))
+    return bright_pixel_coords
 
-if __name__ == "__main__":
-    image_dir = r"R:\Pockels_data\NEXT GEN POCKELS\pockels_run_2025-01-13"
-    crop_range_y = (190, 320)
-    crop_range_x = (5, 635)
+def cap_array(img_array, min_value, max_value):
+    """
+    Cap the values of an image array to a minimum and maximum value.
+    """
+    img_array[img_array < min_value] = min_value
+    img_array[img_array > max_value] = max_value
+    return img_array
 
-    calib_parallel_on = crop_image(png_to_array(os.path.join(image_dir, "calib_parallel_on.png")), 
-                                   crop_range_x, crop_range_y)
-    vmin = np.percentile(calib_parallel_on, 10)
-    vmax = np.percentile(calib_parallel_on, 90)
-    print("Number of dead pixels: ", len(find_dead_pixels(calib_parallel_on)))
-    print(f"Dead pixels: {find_dead_pixels(calib_parallel_on)}")
-    plot_image_colormap(calib_parallel_on, title="Calibrated Parallel On", color_range=(vmin, vmax))
-
-    calib_parallel_on = impute_dead_pixels(calib_parallel_on, find_dead_pixels(calib_parallel_on))
-    print("Number of dead pixels: ", len(find_dead_pixels(calib_parallel_on)))
-    print(f"Dead pixels: {find_dead_pixels(calib_parallel_on)}")
-    plot_image_colormap(calib_parallel_on, title="Calibrated Parallel On", color_range=(vmin, vmax))
-
-    calib_parallel_off = crop_image(png_to_array(os.path.join(image_dir, "calib_parallel_off.png")), 
-                                   crop_range_x, crop_range_y)
-    print(f"Dead pixels: {find_dead_pixels(calib_parallel_off)}")
-    plot_image_colormap(calib_parallel_off, title="Calibrated Parallel Off")
+def remove_low_value_pixels(img_array):
+    """
+    Remove zero and low value pixels from an image array.
+    """
+    img_array[(img_array > 0) & (img_array < 1.0)] = 1.0
+    img_array[(img_array < 0) & (img_array > -1.0)] = -1.0
+    img_array[img_array == 0] = 1.0
+    return img_array
 
 
-    calib_cross_on = crop_image(png_to_array(os.path.join(image_dir, "calib_cross_on.png")), 
-                                   crop_range_x, crop_range_y)
-    print(f"Dead pixels: {find_dead_pixels(calib_cross_on)}")
-    plot_image_colormap(calib_cross_on, title="Calibrated Cross On")
+
+
+# if __name__ == "__main__":
+#     image_dir = r"R:\Pockels_data\NEXT GEN POCKELS\pockels_run_2025-01-13"
+#     crop_range_y = (190, 320)
+#     crop_range_x = (5, 635)
+
+#     calib_parallel_on = crop_image(png_to_array(os.path.join(image_dir, "calib_parallel_on.png")), 
+#                                    crop_range_x, crop_range_y)
+#     vmin = np.percentile(calib_parallel_on, 10)
+#     vmax = np.percentile(calib_parallel_on, 90)
+#     print("Number of dead pixels: ", len(find_dead_pixels(calib_parallel_on)))
+#     print(f"Dead pixels: {find_dead_pixels(calib_parallel_on)}")
+#     plot_image_colormap(calib_parallel_on, title="Calibrated Parallel On", color_range=(vmin, vmax))
+
+#     calib_parallel_on = impute_dead_pixels(calib_parallel_on, find_dead_pixels(calib_parallel_on))
+#     print("Number of dead pixels: ", len(find_dead_pixels(calib_parallel_on)))
+#     print(f"Dead pixels: {find_dead_pixels(calib_parallel_on)}")
+#     plot_image_colormap(calib_parallel_on, title="Calibrated Parallel On", color_range=(vmin, vmax))
+
+#     calib_parallel_off = crop_image(png_to_array(os.path.join(image_dir, "calib_parallel_off.png")), 
+#                                    crop_range_x, crop_range_y)
+#     print(f"Dead pixels: {find_dead_pixels(calib_parallel_off)}")
+#     plot_image_colormap(calib_parallel_off, title="Calibrated Parallel Off")
+
+
+#     calib_cross_on = crop_image(png_to_array(os.path.join(image_dir, "calib_cross_on.png")), 
+#                                    crop_range_x, crop_range_y)
+#     print(f"Dead pixels: {find_dead_pixels(calib_cross_on)}")
+#     plot_image_colormap(calib_cross_on, title="Calibrated Cross On")
 
     # # Find and process HV files
     # hv_files = [f for f in os.listdir(image_dir) if f.startswith('hv_')]

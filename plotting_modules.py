@@ -22,3 +22,19 @@ def create_plotly_figure(img_array,
 
     return fig
 
+def plot_histogram(img_array, title="Histogram"):
+    """
+    Plot a histogram of the image array.
+    """
+    # flatten the image array into a 1D array
+    img_array_1D = img_array.flatten()
+    # print(f"img_array_1D shape: {img_array_1D.shape}")
+    fig = px.histogram(img_array_1D, nbins=256, title=title)
+    return fig
+
+def image_array_statistics(img_array):
+    """
+    Calculate the statistics of the image array.
+    """
+    img_array_1D = img_array.flatten()
+    return np.mean(img_array_1D), np.std(img_array_1D), np.min(img_array_1D), np.max(img_array_1D)
