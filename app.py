@@ -160,7 +160,8 @@ uploaded_data_files = st.file_uploader(
     "Upload Data Images", type=["png"], accept_multiple_files=True
 )
 
-save_dir = r"C:\Users\10552\OneDrive - Redlen Technologies\Code\Pockels-Efield-Mapper\DATA\pockels_run_2025-01-16_b\E-field_data"
+# save_dir = r"C:\Users\10552\OneDrive - Redlen Technologies\Code\Pockels-Efield-Mapper\DATA\pockels_run_2025-01-16_b\E-field_data"
+save_dir = r"C:\Code\Pockels-Efield-Mapper\DATA\pockels_run_2025-01-16_b\E-field_data"
 
 if uploaded_data_files:
     for uploaded_data_file in uploaded_data_files:
@@ -218,10 +219,11 @@ if uploaded_data_files:
                         global_range_pctl,
                         pctl_color_range=True,
                     )
-                    st.plotly_chart(E_fig)
-
                     if save_E_field_data:
                         save_array_to_png(E_field_array, f"E-field_{filename}", save_dir=save_dir)
                         save_array_to_csv(E_field_array, f"E-field_{filename}", save_dir=save_dir)
                         save_plotly_figure(E_fig, f"E-field_{filename}", save_dir=save_dir)
+
+                    st.plotly_chart(E_fig)
+
 
