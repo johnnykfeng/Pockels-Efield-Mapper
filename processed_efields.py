@@ -89,6 +89,7 @@ with st.sidebar:
     dead_pixel_threshold = st.slider(
         "Dead pixel threshold", min_value=0, max_value=1000, value=100
     )
+
     fix_dead_pixels = st.checkbox("Fix dead pixels", value=False)
     with st.expander("Coefficients"):
         wavelength = st.number_input("Wavelength (nm)", value=1550.0)
@@ -115,7 +116,10 @@ def get_voltage_from_filename(filename):
         return None
 
 
-folder_path = r"C:\Users\10552\OneDrive - Redlen Technologies\Code\Pockels-Efield-Mapper\DATA\pockels_run_2025-01-16_b\E-field_data"
+folder_path = r".\DATA\pockels_run_2025-01-16_b\E-field_data"
+with st.expander("Folder path"):
+    st.info(f"Folder path: {folder_path}")
+
 # find all files with .csv extension inside folder_path
 
 csv_files = glob.glob(os.path.join(folder_path, "*.csv"))
@@ -151,7 +155,7 @@ with col2:
     # max_range = np.log10(max_range)
 
 E_field_fig.update_layout(coloraxis_colorbar=dict(
-    title="E-field (V/m)",
+    title="E_z (V/m)",
     # tickvals=[min_range, max_range],
     # ticktext=[f"{min_range:.2e}", f"{max_range:.2e}"]
 ))

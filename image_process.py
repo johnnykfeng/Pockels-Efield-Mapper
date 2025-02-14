@@ -177,6 +177,16 @@ def find_dead_pixels(img_array, threshold=100):
     # return dead_pixel_coords
     return dead_pixel_coords
 
+def find_bad_pixels(img_array, lower_threshold=101, upper_threshold=20e3):
+    """
+    Find bad pixels in an image array.
+    """
+    dim_pixels = np.where(img_array < lower_threshold)
+    bright_pixels = np.where(img_array > upper_threshold)
+    bad_pixels = np.concatenate((dim_pixels, bright_pixels), axis=1)
+    bad_pixel_coords = list(zip(bad_pixels[1], bad_pixels[0]))
+    return bad_pixel_coords
+
 
 def find_bright_pixels(img_array, threshold=20e3):
     """
