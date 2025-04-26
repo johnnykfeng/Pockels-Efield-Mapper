@@ -211,6 +211,8 @@ def remove_low_value_pixels(img_array):
     """
     Remove zero and low value pixels from an image array.
     """
+    # Convert to float to handle negative values
+    img_array = img_array.astype(float)
     img_array[(img_array > 0) & (img_array < 1.0)] = 1.0
     img_array[(img_array < 0) & (img_array > -1.0)] = -1.0
     img_array[img_array == 0] = 1.0
