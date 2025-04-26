@@ -76,6 +76,16 @@ def plot_image_with_color_slider(
     return fig
 
 
+folder_path = r".\DATA\pockels_run_2025-01-16_b\E-field_data"
+with st.expander("Folder path"):
+    st.info(f"Folder path: {folder_path}")
+# find all files with .csv extension inside folder_path
+csv_files = glob.glob(os.path.join(folder_path, "*.csv"))
+
+E_field_shape = csv_to_array(csv_files[0]).shape
+print(f"E_field_shape: {E_field_shape}")
+st.write(f"E_field_shape: {E_field_shape}")
+
 with st.sidebar:
 
     # Color map
@@ -89,7 +99,9 @@ with st.sidebar:
     dead_pixel_threshold = st.slider(
         "Dead pixel threshold", min_value=0, max_value=1000, value=100
     )
-
+    crop_range_x = st.slider("Crop range x", min_value=0, max_value=E_field_shape[1], value=[13, 622])
+    crop_range_y = st.slider("Crop range y", min_value=0, max_value=E_field_shape[0], value=[20, 109])
+    
     fix_dead_pixels = st.checkbox("Fix dead pixels", value=False)
     with st.expander("Coefficients"):
         wavelength = st.number_input("Wavelength (nm)", value=1550.0)
@@ -116,13 +128,6 @@ def get_voltage_from_filename(filename):
         return None
 
 
-folder_path = r".\DATA\pockels_run_2025-01-16_b\E-field_data"
-with st.expander("Folder path"):
-    st.info(f"Folder path: {folder_path}")
-
-# find all files with .csv extension inside folder_path
-
-csv_files = glob.glob(os.path.join(folder_path, "*.csv"))
 
 st.write("CSV files found:")
 E_fields = {}
@@ -141,10 +146,15 @@ ordered_voltages = sorted(voltages)
 selected_voltage = st.select_slider("Select voltage", options=ordered_voltages)
 E_field_array = E_fields[selected_voltage]
 # E_field_array = np.log10(E_field_array)
+E_field_cropped = crop_image(E_field_array, crop_range_x, crop_range_y)
 
 E_field_fig = create_plotly_figure(E_field_array, 
                                    title=filename_without_extension, 
                                    cmap=color_map)
+
+E_field_cropped_fig = create_plotly_figure(E_field_cropped, 
+                                          title=filename_without_extension, 
+                                          cmap=color_map)  
 
 col1, col2 = st.columns(2)
 with col1:
@@ -162,3 +172,12 @@ E_field_fig.update_layout(coloraxis_colorbar=dict(
 E_field_fig.update_coloraxes(cmin=min_range, cmax=max_range)
 
 st.plotly_chart(E_field_fig)
+
+E_field_cropped_fig.update_layout(coloraxis_colorbar=dict(
+    title="E_z (V/m)",
+    # tickvals=[min_range, max_range],
+    # ticktext=[f"{min_range:.2e}", f"{max_range:.2e}"]
+))
+E_field_cropped_fig.update_coloraxes(cmin=min_range, cmax=max_range)
+
+st.plotly_chart(E_field_cropped_fig)
