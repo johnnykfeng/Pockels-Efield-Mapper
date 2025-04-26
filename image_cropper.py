@@ -18,7 +18,7 @@ with tw.container(classes="bg-green-100 text-lg font-bold text-blue-900 rounded-
         with col1:
             crop_range_left = st.number_input("Crop range left", min_value=0, max_value=639, value=160)
         with col2:
-            crop_range_right = st.number_input("Crop range right", min_value=0, max_value=639, value=470)
+            crop_range_right = st.number_input("Crop range right", min_value=0, max_value=639, value=510)
         with col3:
             crop_range_top = st.number_input("Crop range top", min_value=0, max_value=511, value=190)
         with col4:
@@ -76,21 +76,23 @@ with tw.container(classes="bg-gray-100 rounded-lg"):
             vmin, vmax = np.percentile(img_array, (5, 99))
             color_range = st.slider("Color range", min_value=0.0, max_value=vmax*1.5, value=[vmin, vmax])
             fig = create_plotly_figure(img_array, title=uploaded_png_file.name, color_range=color_range)
-            fig.add_shape(type="rect",
-                        x0=bounding_box[0], y0=bounding_box[1], x1=bounding_box[2], y1=bounding_box[3],
-                        line=dict(color="white", width=2, dash="dash"))
+            if apply_bounding_box:
+                fig.add_shape(type="rect",
+                            x0=bounding_box[0], y0=bounding_box[1], x1=bounding_box[2], y1=bounding_box[3],
+                            line=dict(color="white", width=2, dash="dash"))
             st.plotly_chart(fig, title=uploaded_png_file.name)
 
 
 if uploaded_png_files:
-    vmin, vmax = np.percentile(st.session_state.img_arrays["calib_parallel_on.png"], (5, 99))
-    col1, col2 = st.columns(2)
-    with col1:
-        color_range_radio = st.radio("Color range", options=["Auto", "Fixed"], index=0, key="color_range_radio")
-    with col2:
-        color_min, color_max = st.slider("Color range", min_value=0.0, max_value=vmax*1.5, value=[vmin, vmax], key="color_range_matplotlib")
     
     with st.expander("Matplotlib plots"):
+        vmin, vmax = np.percentile(st.session_state.img_arrays["calib_parallel_on.png"], (5, 99))
+        col1, col2 = st.columns(2)
+        with col1:
+            color_range_radio = st.radio("Color range", options=["Auto", "Fixed"], index=0, key="color_range_radio")
+        with col2:
+            color_min, color_max = st.slider("Color range", min_value=0.0, max_value=vmax*1.5, value=[vmin, vmax], key="color_range_matplotlib")
+
         n_rows = len(uploaded_png_files)
         mat_fig, axs = plt.subplots(n_rows, 1, figsize=(10, n_rows*2.5))
         plt.subplots_adjust(hspace=0.4)  # Increase vertical spacing between subplots
@@ -106,13 +108,14 @@ if uploaded_png_files:
             plt.colorbar(im, ax=ax)
             ax.set_title(uploaded_png_file.name, fontsize=8)  # Decrease title font size
             ax.tick_params(axis='both', which='major', labelsize=8)  # Decrease tick label size
-            # Draw bounding box on matplotlib subplot
-            rect = patches.Rectangle((bounding_box[0], bounding_box[1]), 
-                                   bounding_box[2]-bounding_box[0], 
-                                   bounding_box[3]-bounding_box[1],
-                                   linewidth=2, edgecolor='white', facecolor='none', 
-                                   linestyle='--')
-            ax.add_patch(rect)
+            if apply_bounding_box:
+                # Draw bounding box on matplotlib subplot
+                rect = patches.Rectangle((bounding_box[0], bounding_box[1]), 
+                                    bounding_box[2]-bounding_box[0], 
+                                    bounding_box[3]-bounding_box[1],
+                                    linewidth=2, edgecolor='white', facecolor='none', 
+                                    linestyle='--')
+                ax.add_patch(rect)
         st.pyplot(mat_fig)
 
 with save_container.popover("SAVE FILES"):
