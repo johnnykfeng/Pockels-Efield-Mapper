@@ -1,0 +1,27 @@
+[dedic_2021]
+Source = "Dedic_2021"
+n_0 = 2.74
+r_41 = 6.7e-12 # m/V
+lambda = 1550e-9 # m
+material = "CdZnTeSe from BNL"
+
+
+[Cola_2022]
+Source = "Cola_2022"
+n_0 = 2.80
+r_41 = 5.5e-12 # m/V
+lambda = 980e-9 # m
+material = "CdTe:Cl from Acrorad Co. Ltd."
+
+[Rejhon_2016]
+Source = "Rejhon_2016"
+n_0 = 2.74
+r_41 = 2.25e-12 # m/V
+lambda = 1550e-9 # m
+material = "n-type CZT with 10% Zn"
+
+
+
+
+
+
