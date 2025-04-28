@@ -4,7 +4,7 @@ import numpy as np
 import os
 from PIL import Image
 from image_process import png_to_array, crop_image, save_array_to_png
-from plotting_modules import create_plotly_figure
+from plotting_modules import create_plotly_figure, colored_pockels_images_matplotlib
 import time
 import matplotlib.pyplot as plt
 from matplotlib import patches
@@ -86,39 +86,19 @@ with tw.container(classes="bg-gray-100 rounded-lg"):
 if uploaded_png_files:
     
     with st.expander("Matplotlib plots"):
-        vmin, vmax = np.percentile(st.session_state.img_arrays["calib_parallel_on.png"], (5, 99))
+        vmin, vmax = np.percentile(st.session_state.img_arrays["calib_parallel_on.png"], (10, 90))
         col1, col2 = st.columns(2)
         with col1:
             color_range_radio = st.radio("Color range", options=["Auto", "Fixed"], index=0, key="color_range_radio")
         with col2:
             color_min, color_max = st.slider("Color range", min_value=0.0, max_value=vmax*1.5, value=[vmin, vmax], key="color_range_matplotlib")
 
-        n_rows = len(uploaded_png_files)
-        mat_fig, axs = plt.subplots(n_rows, 1, figsize=(10, n_rows*2.5))
-        plt.subplots_adjust(hspace=0.4)  # Increase vertical spacing between subplots
-        mat_fig.tight_layout()
-        mat_fig.suptitle(f"Pockels Images with {color_range_radio}-scale color range", fontsize=15, y=1.05)
-        for i, uploaded_png_file in enumerate(uploaded_png_files):
-            if n_rows == 1:
-                ax = axs
-            else:
-                ax = axs[i]
-            img_array = st.session_state.img_arrays[uploaded_png_file.name]
-            im = ax.imshow(img_array, cmap="jet")
-            if color_range_radio == "Fixed":
-                im.set_clim(color_min, color_max)
-            plt.colorbar(im, ax=ax)
-            ax.set_title(uploaded_png_file.name, fontsize=8)  # Decrease title font size
-            ax.tick_params(axis='both', which='major', labelsize=8)  # Decrease tick label size
-            if apply_bounding_box:
-                # Draw bounding box on matplotlib subplot
-                rect = patches.Rectangle((bounding_box[0], bounding_box[1]), 
-                                    bounding_box[2]-bounding_box[0], 
-                                    bounding_box[3]-bounding_box[1],
-                                    linewidth=2, edgecolor='white', facecolor='none', 
-                                    linestyle='--')
-                ax.add_patch(rect)
-        st.pyplot(mat_fig)
+        mat_fig = colored_pockels_images_matplotlib(st.session_state.img_arrays, 
+                                          color_range_radio, 
+                                          color_min, color_max, 
+                                          apply_bounding_box, bounding_box)
+
+        st.pyplot(fig = mat_fig)
 
 with save_container.popover("SAVE FILES"):
     save_dir = st.text_input("Save directory")

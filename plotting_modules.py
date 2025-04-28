@@ -1,6 +1,9 @@
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 import plotly.express as px
 import os
+import streamlit as st
 
 
 def create_plotly_figure(img_array, 
@@ -49,6 +52,42 @@ def save_plotly_figure(fig, filename, save_dir=None):
     if not filename.endswith('.html'):
         filename = filename + '.html'
     fig.write_html(filename)
+
+def colored_pockels_images_matplotlib(images_dict: dict, 
+                                      color_range_radio: str, 
+                                      color_min: float, 
+                                      color_max: float, 
+                                      apply_bounding_box: bool, 
+                                      bounding_box: tuple):
+    """
+    Plot a set of colored Pockels images using Matplotlib.
+    """
+    n_rows = len(images_dict)
+    mat_fig, axs = plt.subplots(n_rows, 1, figsize=(10, n_rows*2.5))
+    plt.subplots_adjust(hspace=0.4)  # Increase vertical spacing between subplots
+    mat_fig.tight_layout()
+    mat_fig.suptitle(f"Pockels Images with {color_range_radio}-scale color range", fontsize=15, y=1.05)
+    for i, key in enumerate(images_dict):
+        if n_rows == 1:
+            ax = axs
+        else:
+            ax = axs[i]
+        img_array = images_dict[key]
+        im = ax.imshow(img_array, cmap="jet")
+        if color_range_radio == "Fixed":
+            im.set_clim(color_min, color_max)
+        plt.colorbar(im, ax=ax)
+        ax.set_title(key, fontsize=8)  # Decrease title font size
+        ax.tick_params(axis='both', which='major', labelsize=8)  # Decrease tick label size
+        if apply_bounding_box:
+            # Draw bounding box on matplotlib subplot
+            rect = patches.Rectangle((bounding_box[0], bounding_box[1]), 
+                                bounding_box[2]-bounding_box[0], 
+                                bounding_box[3]-bounding_box[1],
+                                linewidth=2, edgecolor='white', facecolor='none', 
+                                linestyle='--')
+            ax.add_patch(rect)
+
 
 
 # DEPRECATED
