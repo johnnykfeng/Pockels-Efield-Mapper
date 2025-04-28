@@ -47,8 +47,8 @@ if "uploader_key" not in st.session_state:
 if "img_arrays" not in st.session_state:
     st.session_state.img_arrays = {}
 
-
-uploaded_png_files = st.file_uploader("Upload PNG files", type=["png"], 
+with st.sidebar:
+    uploaded_png_files = st.file_uploader("Upload PNG files", type=["png"], 
                                       accept_multiple_files=True, key=f"uploader_{st.session_state.uploader_key}")
 
 col1, col2 = st.columns(2)
@@ -96,6 +96,8 @@ if uploaded_png_files:
         n_rows = len(uploaded_png_files)
         mat_fig, axs = plt.subplots(n_rows, 1, figsize=(10, n_rows*2.5))
         plt.subplots_adjust(hspace=0.4)  # Increase vertical spacing between subplots
+        mat_fig.tight_layout()
+        mat_fig.suptitle(f"Pockels Images with {color_range_radio}-scale color range", fontsize=15, y=1.05)
         for i, uploaded_png_file in enumerate(uploaded_png_files):
             if n_rows == 1:
                 ax = axs
