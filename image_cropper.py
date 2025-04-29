@@ -60,10 +60,11 @@ with col1:
     
 with col2:
     save_container = st.empty()
-
+    download_btn = st.empty()
 
 # Crop images and save cropped images to session state
 if uploaded_png_files:
+    st.session_state.img_arrays = {}
     for uploaded_png_file in uploaded_png_files:
         img_array = png_to_array(uploaded_png_file)
         img_array = crop_image(img_array, crop_range_x, crop_range_y)
@@ -117,3 +118,5 @@ with save_container.popover("SAVE FILES"):
                 st.success("Saved matplotlib figure!")
         else:
             st.warning("No files uploaded")
+
+
