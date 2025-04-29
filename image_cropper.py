@@ -108,22 +108,8 @@ if uploaded_png_files:
         st.pyplot(fig = mat_fig)
 
 with save_container.popover("SAVE FILES"):
-    # save_dir = st.text_input("Save directory")
-    # if save_dir:
-    #     if not os.path.exists(save_dir):
-    #         os.makedirs(save_dir)
-    #         st.success(f"Created directory: {save_dir}")
-    #     if uploaded_png_files:
-    #         if st.button("Save cropped images") and uploaded_png_files:
-    #             for uploaded_png_file in uploaded_png_files:
-    #                 img_array = st.session_state.img_arrays[uploaded_png_file.name]
-    #                 save_array_to_png(img_array, f"{save_dir}/{uploaded_png_file.name}")
-    #             st.success("Saved cropped images!")
-    #         if st.button("Save matplotlib figure"):
-    #             mat_fig.savefig(f"{save_dir}/Matplotlib_figure_{color_range_radio}-color.pdf", format="pdf")
-    #             st.success("Saved matplotlib figure!")
-    #     else:
-    #         st.warning("No files uploaded")
+    
+    sensor_id = st.text_input("Sensor ID", value="sensor-id")
 
     if uploaded_png_files:
         # Create a zip file
@@ -143,7 +129,7 @@ with save_container.popover("SAVE FILES"):
         st.download_button(
             label="Click to download ZIP of cropped images",
             data=zip_buffer,
-            file_name="cropped_images.zip",
+            file_name=f"{sensor_id}_cropped_images.zip",
             mime="application/zip"
         )
 
@@ -158,7 +144,7 @@ with save_container.popover("SAVE FILES"):
             st.download_button(
                 label="Download Matplotlib figure as PDF",
                 data=pdf_buffer,
-                file_name=f"Matplotlib_figure_{color_range_radio}-color.pdf",
+                file_name=f"{sensor_id}_Matplotlib_figure_{color_range_radio}-color.pdf",
                 mime="application/pdf"
             )
 
