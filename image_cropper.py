@@ -8,6 +8,8 @@ from plotting_modules import create_plotly_figure, colored_pockels_images_matplo
 import time
 import matplotlib.pyplot as plt
 from matplotlib import patches
+import zipfile
+import io
 st.set_page_config(layout="wide")
 tw.initialize_tailwind()
 
@@ -118,5 +120,28 @@ with save_container.popover("SAVE FILES"):
                 st.success("Saved matplotlib figure!")
         else:
             st.warning("No files uploaded")
+
+    if uploaded_png_files:
+        # Create a zip file
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            for uploaded_png_file in uploaded_png_files:
+                img_array = st.session_state.img_arrays[uploaded_png_file.name]
+                # Create a temporary file in memory
+                img_buffer = io.BytesIO()
+                img = Image.fromarray(img_array)
+                img.save(img_buffer, format='PNG')
+                # Add the image to the zip file
+                zip_file.writestr(uploaded_png_file.name, img_buffer.getvalue())
+        
+        # Prepare the zip file for download
+        zip_buffer.seek(0)
+        st.download_button(
+            label="Click to download ZIP",
+            data=zip_buffer,
+            file_name="cropped_images.zip",
+            mime="application/zip"
+        )
+
 
 
