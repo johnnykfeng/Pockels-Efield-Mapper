@@ -87,6 +87,7 @@ def colored_pockels_images_matplotlib(images_dict: dict,
                                 linewidth=2, edgecolor='white', facecolor='none', 
                                 linestyle='--')
             ax.add_patch(rect)
+    return mat_fig
 
 
 

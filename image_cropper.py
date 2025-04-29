@@ -48,6 +48,9 @@ if "uploader_key" not in st.session_state:
     
 if "img_arrays" not in st.session_state:
     st.session_state.img_arrays = {}
+    
+if "mat_fig" not in st.session_state:
+    st.session_state.mat_fig = None
 
 with st.sidebar:
     uploaded_png_files = st.file_uploader("Upload PNG files", type=["png"], 
@@ -100,26 +103,27 @@ if uploaded_png_files:
                                           color_range_radio, 
                                           color_min, color_max, 
                                           apply_bounding_box, bounding_box)
+        st.session_state.mat_fig = mat_fig
 
         st.pyplot(fig = mat_fig)
 
 with save_container.popover("SAVE FILES"):
-    save_dir = st.text_input("Save directory")
-    if save_dir:
-        if not os.path.exists(save_dir):
-            os.makedirs(save_dir)
-            st.success(f"Created directory: {save_dir}")
-        if uploaded_png_files:
-            if st.button("Save cropped images") and uploaded_png_files:
-                for uploaded_png_file in uploaded_png_files:
-                    img_array = st.session_state.img_arrays[uploaded_png_file.name]
-                    save_array_to_png(img_array, f"{save_dir}/{uploaded_png_file.name}")
-                st.success("Saved cropped images!")
-            if st.button("Save matplotlib figure"):
-                mat_fig.savefig(f"{save_dir}/Matplotlib_figure_{color_range_radio}-color.pdf", format="pdf")
-                st.success("Saved matplotlib figure!")
-        else:
-            st.warning("No files uploaded")
+    # save_dir = st.text_input("Save directory")
+    # if save_dir:
+    #     if not os.path.exists(save_dir):
+    #         os.makedirs(save_dir)
+    #         st.success(f"Created directory: {save_dir}")
+    #     if uploaded_png_files:
+    #         if st.button("Save cropped images") and uploaded_png_files:
+    #             for uploaded_png_file in uploaded_png_files:
+    #                 img_array = st.session_state.img_arrays[uploaded_png_file.name]
+    #                 save_array_to_png(img_array, f"{save_dir}/{uploaded_png_file.name}")
+    #             st.success("Saved cropped images!")
+    #         if st.button("Save matplotlib figure"):
+    #             mat_fig.savefig(f"{save_dir}/Matplotlib_figure_{color_range_radio}-color.pdf", format="pdf")
+    #             st.success("Saved matplotlib figure!")
+    #     else:
+    #         st.warning("No files uploaded")
 
     if uploaded_png_files:
         # Create a zip file
@@ -137,11 +141,26 @@ with save_container.popover("SAVE FILES"):
         # Prepare the zip file for download
         zip_buffer.seek(0)
         st.download_button(
-            label="Click to download ZIP",
+            label="Click to download ZIP of cropped images",
             data=zip_buffer,
             file_name="cropped_images.zip",
             mime="application/zip"
         )
+
+        # Only try to save the matplotlib figure if it exists
+        if st.session_state.mat_fig is not None:
+            # Create a PDF buffer for the matplotlib figure
+            pdf_buffer = io.BytesIO()
+            st.session_state.mat_fig.savefig(pdf_buffer, format='pdf', bbox_inches='tight')
+            pdf_buffer.seek(0)
+
+            # Add download button for PDF figure
+            st.download_button(
+                label="Download Matplotlib figure as PDF",
+                data=pdf_buffer,
+                file_name=f"Matplotlib_figure_{color_range_radio}-color.pdf",
+                mime="application/pdf"
+            )
 
 
 
