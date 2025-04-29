@@ -13,6 +13,24 @@ import io
 st.set_page_config(layout="wide")
 tw.initialize_tailwind()
 
+if "uploader_key" not in st.session_state:
+    st.session_state.uploader_key = 0
+    
+if "img_arrays" not in st.session_state:
+    st.session_state.img_arrays = {}
+    
+if "mat_fig" not in st.session_state:
+    st.session_state.mat_fig = None
+
+@st.cache_data
+def cached_colored_pockels_images_matplotlib(images_dict: dict, 
+                                              color_range_radio: str, 
+                                              color_min: float, 
+                                              color_max: float, 
+                                              apply_bounding_box: bool, 
+                                              bounding_box: tuple):
+    return colored_pockels_images_matplotlib(images_dict, color_range_radio, color_min, color_max, apply_bounding_box, bounding_box)
+    
 st.title("Image Cropper")
 with tw.container(classes="bg-green-100 text-lg font-bold text-blue-900 rounded-lg"):
     with st.expander("Image Processing"):
@@ -43,27 +61,21 @@ with tw.container(classes="bg-green-100 text-lg font-bold text-blue-900 rounded-
         else:
             bounding_box = None
 
-if "uploader_key" not in st.session_state:
-    st.session_state.uploader_key = 0
-    
-if "img_arrays" not in st.session_state:
-    st.session_state.img_arrays = {}
-    
-if "mat_fig" not in st.session_state:
-    st.session_state.mat_fig = None
 
 with st.sidebar:
     uploaded_png_files = st.file_uploader("Upload PNG files", type=["png"], 
                                       accept_multiple_files=True, key=f"uploader_{st.session_state.uploader_key}")
 
-col1, col2 = st.columns(2)
+col1, col2, col3 = st.columns(3)
 with col1:
     if st.button("Clear Uploaded Files"):
         st.session_state.uploader_key += 1
         time.sleep(0.5)
         st.rerun()
-    
 with col2:
+    sensor_id = st.text_input("Sensor ID", value="sensor-id")
+
+with col3:
     save_container = st.empty()
     download_btn = st.empty()
 
@@ -99,7 +111,7 @@ if uploaded_png_files:
         with col2:
             color_min, color_max = st.slider("Color range", min_value=0.0, max_value=vmax*1.5, value=[vmin, vmax], key="color_range_matplotlib")
 
-        mat_fig = colored_pockels_images_matplotlib(st.session_state.img_arrays, 
+        mat_fig = cached_colored_pockels_images_matplotlib(st.session_state.img_arrays, 
                                           color_range_radio, 
                                           color_min, color_max, 
                                           apply_bounding_box, bounding_box)
@@ -109,8 +121,6 @@ if uploaded_png_files:
 
 with save_container.popover("SAVE FILES"):
     
-    sensor_id = st.text_input("Sensor ID", value="sensor-id")
-
     if uploaded_png_files:
         # Create a zip file
         zip_buffer = io.BytesIO()
