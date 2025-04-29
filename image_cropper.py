@@ -32,34 +32,33 @@ def cached_colored_pockels_images_matplotlib(images_dict: dict,
     return colored_pockels_images_matplotlib(images_dict, color_range_radio, color_min, color_max, apply_bounding_box, bounding_box)
     
 st.title("Image Cropper")
-with tw.container(classes="bg-green-100 text-lg font-bold text-blue-900 rounded-lg"):
-    with st.expander("Image Processing"):
-        col1, col2, col3, col4 = st.columns(4)
+with st.expander("Image Processing"):
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        crop_range_left = st.number_input("Crop range left", min_value=0, max_value=639, value=160)
+    with col2:
+        crop_range_right = st.number_input("Crop range right", min_value=0, max_value=639, value=510)
+    with col3:
+        crop_range_top = st.number_input("Crop range top", min_value=0, max_value=511, value=190)
+    with col4:
+        crop_range_bottom = st.number_input("Crop range bottom", min_value=0, max_value=511, value=310)
+    crop_range_x = [crop_range_left, crop_range_right]
+    crop_range_y = [crop_range_top, crop_range_bottom]
+    size_x = crop_range_right - crop_range_left
+    size_y = crop_range_bottom - crop_range_top
+    apply_bounding_box = st.checkbox("Apply bounding box", value=True)
+    if apply_bounding_box:
         with col1:
-            crop_range_left = st.number_input("Crop range left", min_value=0, max_value=639, value=160)
+            left_border = st.number_input("Left border", min_value=0, max_value=size_x, value=0)
         with col2:
-            crop_range_right = st.number_input("Crop range right", min_value=0, max_value=639, value=510)
+            right_border = st.number_input("Right border", min_value=0, max_value=size_x, value=size_x)
         with col3:
-            crop_range_top = st.number_input("Crop range top", min_value=0, max_value=511, value=190)
+            top_border = st.number_input("Top border", min_value=0, max_value=size_y, value=0)
         with col4:
-            crop_range_bottom = st.number_input("Crop range bottom", min_value=0, max_value=511, value=310)
-        crop_range_x = [crop_range_left, crop_range_right]
-        crop_range_y = [crop_range_top, crop_range_bottom]
-        size_x = crop_range_right - crop_range_left
-        size_y = crop_range_bottom - crop_range_top
-        apply_bounding_box = st.checkbox("Apply bounding box", value=True)
-        if apply_bounding_box:
-            with col1:
-                left_border = st.number_input("Left border", min_value=0, max_value=size_x, value=0)
-            with col2:
-                right_border = st.number_input("Right border", min_value=0, max_value=size_x, value=size_x)
-            with col3:
-                top_border = st.number_input("Top border", min_value=0, max_value=size_y, value=0)
-            with col4:
-                bottom_border = st.number_input("Bottom border", min_value=0, max_value=size_y, value=size_y)
-            bounding_box = [left_border, top_border, right_border, bottom_border]
-        else:
-            bounding_box = None
+            bottom_border = st.number_input("Bottom border", min_value=0, max_value=size_y, value=size_y)
+        bounding_box = [left_border, top_border, right_border, bottom_border]
+    else:
+        bounding_box = None
 
 
 with st.sidebar:
@@ -87,18 +86,17 @@ if uploaded_png_files:
         img_array = crop_image(img_array, crop_range_x, crop_range_y)
         st.session_state.img_arrays[uploaded_png_file.name] = img_array
         
-with tw.container(classes="bg-gray-100 rounded-lg"):
-    with st.expander("Cropped images"):
-        for uploaded_png_file in uploaded_png_files:
-            img_array = st.session_state.img_arrays[uploaded_png_file.name]
-            vmin, vmax = np.percentile(img_array, (5, 99))
-            color_range = st.slider("Color range", min_value=0.0, max_value=vmax*1.5, value=[vmin, vmax])
-            fig = create_plotly_figure(img_array, title=uploaded_png_file.name, color_range=color_range)
-            if apply_bounding_box:
-                fig.add_shape(type="rect",
-                            x0=bounding_box[0], y0=bounding_box[1], x1=bounding_box[2], y1=bounding_box[3],
-                            line=dict(color="white", width=2, dash="dash"))
-            st.plotly_chart(fig, title=uploaded_png_file.name)
+with st.expander("Cropped images"):
+    for uploaded_png_file in uploaded_png_files:
+        img_array = st.session_state.img_arrays[uploaded_png_file.name]
+        vmin, vmax = np.percentile(img_array, (5, 99))
+        color_range = st.slider("Color range", min_value=0.0, max_value=vmax*1.5, value=[vmin, vmax])
+        fig = create_plotly_figure(img_array, title=uploaded_png_file.name, color_range=color_range)
+        if apply_bounding_box:
+            fig.add_shape(type="rect",
+                        x0=bounding_box[0], y0=bounding_box[1], x1=bounding_box[2], y1=bounding_box[3],
+                        line=dict(color="white", width=2, dash="dash"))
+        st.plotly_chart(fig, title=uploaded_png_file.name)
 
 
 if uploaded_png_files:
