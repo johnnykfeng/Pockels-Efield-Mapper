@@ -1,5 +1,7 @@
 import streamlit as st
 import numpy as np
+import plotly.graph_objects as go
+import matplotlib.pyplot as plt
 from image_process import (
     png_to_array,
     crop_image,
@@ -19,8 +21,6 @@ from plotting_modules import (
     save_plotly_figure,
 )
 from pockels_math import alpha, E_ref, E_field_from_T
-from plotly.subplots import make_subplots
-import plotly.graph_objects as go
 
 st.set_page_config(layout="wide")
 
@@ -70,7 +70,7 @@ st.title("Pockels Image Analyzer")
 st.write("Upload a PNG image to analyze its data.")
 
 with st.sidebar:
-    fig_height = st.slider("Figure height", min_value=100, max_value=1000, value=1000)
+    fig_height = st.slider("Figure height", min_value=100, max_value=1000, value=300)
     
     col1, col2 = st.columns(2)  
     with col1:
@@ -223,6 +223,7 @@ if calib_img_arrays:
 raw_image_plotly_figures = {}
 E_field_arrays = {}
 E_field_plotly_figures = {}
+row_avg_E_field_arrays = {}
 
 # save_dir = r"DATA/Saved_Efield"
 
@@ -236,10 +237,20 @@ with st.expander("Control Panel"):
         perform_T_normalization = st.checkbox("Normalize transmission (0<T<1)", value=True, key=f"normalize_transmission")
         show_transmission_image = st.checkbox("Show transmission image", value=False, key=f"show_transmission_image")
         calculate_E_field = st.checkbox("Calculate E-field", value=True, key=f"do_E_field")
-    # with col3:
-    #     normalization_method = st.radio("Normalization method", 
-    #                                     options=["I_bias/I_para", "(I_bias-I_cross)/(I_para)", "(I_bias-I_cross)/(I_para-I_off)"])
-    #     save_dir = st.text_input("Save directory", value=save_dir)
+    with st.sidebar:
+        def format_func(option):
+            mapping = {
+                "norm_1": "I_bias/I_para",
+                "norm_2": "(I_bias-I_cross)/(I_para)",
+                "norm_3": "(I_bias-I_cross)/(I_para-I_off)"
+            }
+            return mapping[option]
+        normalization_method = st.radio("Normalization method", 
+                                        options=["norm_1", 
+                                                 "norm_2", 
+                                                 "norm_3"],
+                                        format_func=format_func, index = 2)
+        st.caption(f"Selected normalization: {normalization_method}")
     # with col4:
 
 if uploaded_data_files:
@@ -249,12 +260,16 @@ if uploaded_data_files:
         img_array = crop_image(img_array, crop_range_x, crop_range_y)
 
         if calib_img_arrays:
-            numerator = (img_array 
-            - calib_img_arrays["calib_cross_on"])
-            denominator = (
-                calib_img_arrays["calib_parallel_on"] 
-                - calib_img_arrays["calib_parallel_off"]
-            )
+            if normalization_method == "norm_1":
+                numerator = img_array
+                denominator = calib_img_arrays["calib_parallel_on"]
+            elif normalization_method == "norm_2":
+                numerator = img_array - calib_img_arrays["calib_cross_on"]
+                denominator = calib_img_arrays["calib_parallel_on"]
+            elif normalization_method == "norm_3":
+                numerator = img_array - calib_img_arrays["calib_cross_on"]
+                denominator = calib_img_arrays["calib_parallel_on"] - calib_img_arrays["calib_parallel_off"]
+            
             denominator = remove_low_value_pixels(denominator)
             T_array = numerator / denominator
 
@@ -315,7 +330,59 @@ if uploaded_data_files:
                     E_field_plotly_figures[f"{filename}"] = E_fig # save the plotly figure
                     st.plotly_chart(E_fig)
 
-# st.write(E_field_arrays.keys())
+
+                    # Plot row-wise average of E-field within bounding box
+                    if bounding_box:
+                        size_image = np.shape(E_field_array)
+                        st.write(f"Size of image: {size_image}")
+                        # Extract the region within bounding box
+                        x0, y0, x1, y1 = bounding_box
+                        st.write(f"Bounding box [x0, x1, y0, y1]: {x0}, {x1}, {y0}, {y1}")
+                        E_field_roi = E_field_array[y0:y1, x0:x1]
+
+                        # Calculate row-wise average
+                        row_avg = np.mean(E_field_roi, axis=1)
+                        row_indices = np.arange(y0, y1)
+                        row_avg_E_field_arrays[filename] = {"E_row_avg": row_avg, 
+                                                            "row_indices": row_indices}
+                        # Create figure for row average plot
+                        fig, ax = plt.subplots(figsize=(10, 6))
+                        # Use actual pixel indices from original image
+                        ax.plot(row_indices, row_avg, '-')
+                        ax.set_xlabel('Row position (pixels)', fontsize=14)
+                        ax.set_ylabel('Average Ez-field (V/m)', fontsize=14)
+                        ax.set_title(f'Row-wise Average E-field for {filename}', fontsize=16)
+                        ax.grid(True)
+                        # Format y-axis ticks in scientific notation
+                        ax.ticklabel_format(axis='y', style='sci', scilimits=(0,0))
+                        # Increase tick label font size
+                        ax.tick_params(axis='both', which='major', labelsize=12)
+                        st.pyplot(fig)
+
+with st.expander("Row-wise Average E-field"):
+    if row_avg_E_field_arrays:
+        fig, ax = plt.subplots(figsize=(10, 6))
+        # Invert the color order by reversing the color array
+        colors = plt.cm.jet(np.linspace(1, 0, len(row_avg_E_field_arrays)))
+        # Reverse the order of items for plotting
+        for i, (filename, row_avg_E_field_array) in enumerate(
+            reversed(list(row_avg_E_field_arrays.items()))):
+            
+            ax.plot(row_avg_E_field_array['row_indices'], row_avg_E_field_array['E_row_avg'], '-',
+                    label=f'{filename}', color=colors[i])
+        ax.set_xlabel('Row position (pixels)', fontsize=14)
+        ax.set_ylabel('Average Ez-field (V/m)', fontsize=14)
+        ax.set_title(f'Row-wise Average Ez-field', fontsize=16)
+        ax.grid(True)
+        ax.ticklabel_format(axis='y', style='sci', scilimits=(0,0))
+        ax.tick_params(axis='both', which='major', labelsize=12)
+        # Place legend outside the plot
+        ax.legend(fontsize=12, bbox_to_anchor=(1.05, 1), loc='upper left')
+        # Adjust layout to make room for the legend
+        plt.tight_layout()
+        st.pyplot(fig)
+    else:
+        st.warning("No row-wise average E-field data available")
 
 if st.button("Save Raw Images as Plotly Figures"):
     for filename, img_fig in raw_image_plotly_figures.items():
@@ -336,7 +403,7 @@ if st.button("Save E-field data"):
         
 #         # Create subplot figure
 #         fig = make_subplots(rows=n_rows, cols=n_cols, 
-#                            subplot_titles=list(E_field_plotly_figures.keys()),
+#                            subplot_titles=list(E_field_arrays.keys()),
 #                            start_cell="top-left",
 #                            horizontal_spacing=0.05,
 #                            vertical_spacing=0.05)  # Equal height for all rows
