@@ -129,20 +129,17 @@ with st.expander("Image Processing"):
     crop_range_y = [crop_range_top, crop_range_bottom]
     size_x = crop_range_right - crop_range_left
     size_y = crop_range_bottom - crop_range_top
-    apply_bounding_box = st.checkbox("Apply bounding box", value=True)
-    if apply_bounding_box:
-        with col1:
-            left_border = st.number_input("Left border", min_value=0, max_value=size_x, value=0)
-        with col2:
-            right_border = st.number_input("Right border", min_value=0, max_value=size_x, value=size_x)
-        with col3:
-            top_border = st.number_input("Top border", min_value=0, max_value=size_y, value=0)
-        with col4:
-            bottom_border = st.number_input("Bottom border", min_value=0, max_value=size_y, value=size_y)
-        bounding_box = [left_border, top_border, right_border, bottom_border]
-    else:
-        bounding_box = None
+    with col1:
+        left_border = st.number_input("Left border", min_value=0, max_value=size_x, value=0)
+    with col2:
+        right_border = st.number_input("Right border", min_value=0, max_value=size_x, value=size_x)
+    with col3:
+        top_border = st.number_input("Top border", min_value=0, max_value=size_y, value=0)
+    with col4:
+        bottom_border = st.number_input("Bottom border", min_value=0, max_value=size_y, value=size_y)
+    bounding_box = [left_border, top_border, right_border, bottom_border]
         
+    apply_bounding_box = st.checkbox("Apply bounding box", value=True)
 
 
 col1, col2 = st.columns(2)
@@ -234,6 +231,7 @@ with st.expander("Control Panel"):
         Emax = st.number_input("Maximum E-field (MV/m)", min_value=0.0, max_value=10.0, value=1.0)*1e6
     with col2:
         show_raw_image = st.checkbox("Show raw image", value=True, key=f"show_raw_image")
+        show_numerator_denominator = st.checkbox("Show numerator and denominator", value=False, key=f"show_numerator_denominator")
         perform_T_normalization = st.checkbox("Normalize transmission (0<T<1)", value=True, key=f"normalize_transmission")
         show_transmission_image = st.checkbox("Show transmission image", value=False, key=f"show_transmission_image")
         calculate_E_field = st.checkbox("Calculate E-field", value=True, key=f"do_E_field")
@@ -256,7 +254,8 @@ with st.expander("Control Panel"):
 if uploaded_data_files:
     for uploaded_data_file in uploaded_data_files:
         filename = remove_extension(uploaded_data_file.name)
-        img_array = png_to_array(uploaded_data_file)
+        img_array = png_to_array(uploaded_data_file, dtype=np.float32)
+        # img_array = img_array.astype(float)
         img_array = crop_image(img_array, crop_range_x, crop_range_y)
 
         if calib_img_arrays:
@@ -270,8 +269,14 @@ if uploaded_data_files:
                 numerator = img_array - calib_img_arrays["calib_cross_on"]
                 denominator = calib_img_arrays["calib_parallel_on"] - calib_img_arrays["calib_parallel_off"]
             
-            denominator = remove_low_value_pixels(denominator)
+            # numerator[numerator<0] = 0
+            denominator[denominator<=0] = 1e-10
             T_array = numerator / denominator
+            
+            # denominator_heatmap = heatmap_plot_with_bounding_box(
+            #     denominator, f"{uploaded_data_file.name}_denominator", color_map, color_range, 
+            #     fig_height=fig_height, bounding_box=bounding_box)
+            
 
         with st.expander(f"Plot {filename}"):
             
@@ -287,9 +292,20 @@ if uploaded_data_files:
             if show_raw_image:
                 st.plotly_chart(img_fig)
             if calib_img_arrays:
+                if show_numerator_denominator:
+                    color_range = st.slider("Color range", min_value=0.0, max_value=65500.0, value=[vmin, vmax],
+                                            key=f"numerator_color_range_{filename}")
+                    numerator_heatmap = heatmap_plot_with_bounding_box(
+                        numerator, f"Numerator_{uploaded_data_file.name}", color_map, color_range, 
+                        fig_height=fig_height, bounding_box=bounding_box)
+                    st.plotly_chart(numerator_heatmap)
+                    denominator_heatmap = heatmap_plot_with_bounding_box(
+                        denominator, f"Denominator_{uploaded_data_file.name}", color_map, color_range, 
+                        fig_height=fig_height, bounding_box=bounding_box)
+                    st.plotly_chart(denominator_heatmap)
 
                 if perform_T_normalization:
-                    T_array = cap_array(T_array, 0, 1.0)
+                    T_array = cap_array(T_array, 1e-3, 1.0)
                 if fix_bad_pixels:
                     T_array = impute_bad_pixels(T_array, all_bad_pixels)
                 if show_transmission_image:
