@@ -6,7 +6,7 @@ import plotly.express as px
 import time
 
 
-def png_to_array(image_path):
+def png_to_array(image_path, dtype=np.float32):
     """
     Convert a PNG image to a numpy array.
 
@@ -22,7 +22,7 @@ def png_to_array(image_path):
 
     # Convert to numpy array
     img_array = np.array(img)
-
+    img_array = img_array.astype(dtype)
     return img_array
 
 
