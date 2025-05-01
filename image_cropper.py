@@ -115,7 +115,6 @@ if uploaded_png_files:
                                           apply_bounding_box, bounding_box)
         mat_fig.suptitle(f"Raw Camera Images with {color_range_radio}-scale color range", fontsize=15, y=1.05)
         st.session_state.mat_fig = mat_fig
-
         st.pyplot(fig = mat_fig)
 
 with save_container.popover("SAVE FILES"):
@@ -140,7 +139,8 @@ with save_container.popover("SAVE FILES"):
         st.download_button(
             label="Click to download ZIP of cropped images",
             data=zip_buffer,
-            file_name=f"{sensor_id}_cropped_images.zip",
+            file_name=f"{sensor_id}_cropped_images.zip" \
+                if sensor_id else "cropped_images.zip",
             mime="application/zip"
         )
 
@@ -155,7 +155,8 @@ with save_container.popover("SAVE FILES"):
             st.download_button(
                 label="Download Matplotlib figure as PDF",
                 data=pdf_buffer,
-                file_name=f"{sensor_id}_Raw_Camera_Images_{color_range_radio}-color.pdf",
+                file_name=f"{sensor_id}_Raw_Camera_Images_{color_range_radio}-color.pdf" \
+                    if sensor_id else f"Raw_Camera_Images_{color_range_radio}-color.pdf",
                 mime="application/pdf"
             )
 
