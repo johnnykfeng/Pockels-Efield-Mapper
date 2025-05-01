@@ -17,6 +17,18 @@
    2. Separate all sets of images and data in appropriate subfolders
    3. 
 
+2025-04-30
+- Apply a metadata organization...
+- Create function that extracts metadata from filename
+- def metadata_from_filename(filename:str):
+   ...
+   return Bias, XrayFlux, LEDFlux, ...
+- Efield_data = {Bias: [0,... 1100V], XrayFlux: [0], LEDFlux: [0, .., n], Efield_array: []}
+- Create an ALL_DATA file, either in hdf or just plain dictionary
+   - Calibration -> parallel_on, parallel_off, cross_on
+   - Bias, XrayFlux, LEDflux  -> Raw image, Numerator, Denominator, Transmission, Efield
+
+
 * END GAME:
    - Create a one page static PDF report or HTML dashboard showing all the results
    - Include all the E-field figures
