@@ -468,19 +468,7 @@ if True:
         st.download_button(
             label="Download E-field plots as PDF",
             data=pdf_buffer,
-            file_name=f"{sensor_id}_Efield_plots.pdf",
+            file_name=f"{sensor_id}_Efield_plots.pdf" \
+                if sensor_id else "Efield_plots.pdf",
             mime="application/pdf"
         )
-
-
-
-# if st.button("Save Raw Images as Plotly Figures"):
-#     for filename, img_fig in raw_image_plotly_figures.items():
-#         save_plotly_figure(img_fig, f"{filename}_raw", save_dir=r"DATA/Saved_Images")
-
-# save_dir = st.text_input("Save directory", value=r"DATA/Saved_Efield")
-# if st.button("Save E-field data"):
-#     for filename, E_field_array in E_field_arrays.items():
-        # save_array_to_png(E_field_array, f"E-field_{filename}", save_dir=save_dir)
-        # save_plotly_figure(E_field_plotly_figures[filename], f"E-field_{filename}", save_dir=save_dir)
-
