@@ -35,13 +35,13 @@ st.title("Image Cropper")
 with st.expander("Image Processing"):
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        crop_range_left = st.number_input("Crop range left", min_value=0, max_value=639, value=160)
+        crop_range_left = st.number_input("Crop range left", min_value=0, max_value=639, value=145)
     with col2:
-        crop_range_right = st.number_input("Crop range right", min_value=0, max_value=639, value=510)
+        crop_range_right = st.number_input("Crop range right", min_value=0, max_value=639, value=520)
     with col3:
-        crop_range_top = st.number_input("Crop range top", min_value=0, max_value=511, value=190)
+        crop_range_top = st.number_input("Crop range top", min_value=0, max_value=511, value=210)
     with col4:
-        crop_range_bottom = st.number_input("Crop range bottom", min_value=0, max_value=511, value=310)
+        crop_range_bottom = st.number_input("Crop range bottom", min_value=0, max_value=511, value=320)
     crop_range_x = [crop_range_left, crop_range_right]
     crop_range_y = [crop_range_top, crop_range_bottom]
     size_x = crop_range_right - crop_range_left
@@ -49,13 +49,13 @@ with st.expander("Image Processing"):
     apply_bounding_box = st.checkbox("Apply bounding box", value=True)
     if apply_bounding_box:
         with col1:
-            left_border = st.number_input("Left border", min_value=0, max_value=size_x, value=0)
+            left_border = st.number_input("Left border", min_value=0, max_value=size_x, value=17)
         with col2:
-            right_border = st.number_input("Right border", min_value=0, max_value=size_x, value=size_x)
+            right_border = st.number_input("Right border", min_value=0, max_value=size_x, value=size_x-17)
         with col3:
-            top_border = st.number_input("Top border", min_value=0, max_value=size_y, value=0)
+            top_border = st.number_input("Top border", min_value=0, max_value=size_y, value=27)
         with col4:
-            bottom_border = st.number_input("Bottom border", min_value=0, max_value=size_y, value=size_y)
+            bottom_border = st.number_input("Bottom border", min_value=0, max_value=size_y, value=size_y-27)
         bounding_box = [left_border, top_border, right_border, bottom_border]
     else:
         bounding_box = None
