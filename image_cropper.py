@@ -127,6 +127,8 @@ with save_container.popover("SAVE FILES"):
                 img_array = st.session_state.img_arrays[uploaded_png_file.name]
                 # Create a temporary file in memory
                 img_buffer = io.BytesIO()
+                # Convert array to uint16 (16-bit unsigned integer) which is compatible with PNG
+                img_array = img_array.astype(np.uint16)
                 img = Image.fromarray(img_array)
                 img.save(img_buffer, format='PNG')
                 # Add the image to the zip file
