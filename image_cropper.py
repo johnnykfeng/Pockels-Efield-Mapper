@@ -154,7 +154,7 @@ with save_container.popover("SAVE FILES"):
             st.download_button(
                 label="Download Matplotlib figure as PDF",
                 data=pdf_buffer,
-                file_name=f"{sensor_id}_Matplotlib_figure_{color_range_radio}-color.pdf",
+                file_name=f"{sensor_id}_Raw_Camera_Images_{color_range_radio}-color.pdf",
                 mime="application/pdf"
             )
 
