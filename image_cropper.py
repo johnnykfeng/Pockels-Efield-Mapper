@@ -107,12 +107,13 @@ if uploaded_png_files:
         with col1:
             color_range_radio = st.radio("Color range", options=["Auto", "Fixed"], index=0, key="color_range_radio")
         with col2:
-            color_min, color_max = st.slider("Color range", min_value=0.0, max_value=vmax*1.5, value=[vmin, vmax], key="color_range_matplotlib")
+            color_min, color_max = st.slider("Color range", min_value=0.0, max_value=vmax*1.5, value=[vmin, vmax*0.8], key="color_range_matplotlib")
 
         mat_fig = cached_colored_pockels_images_matplotlib(st.session_state.img_arrays, 
                                           color_range_radio, 
                                           color_min, color_max, 
                                           apply_bounding_box, bounding_box)
+        mat_fig.suptitle(f"Raw Camera Images with {color_range_radio}-scale color range", fontsize=15, y=1.05)
         st.session_state.mat_fig = mat_fig
 
         st.pyplot(fig = mat_fig)
