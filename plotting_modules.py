@@ -67,7 +67,7 @@ def colored_pockels_images_matplotlib(images_dict: dict,
     mat_fig, axs = plt.subplots(n_rows, 1, figsize=(10, n_rows*2.5))
     plt.subplots_adjust(hspace=0.4)  # Increase vertical spacing between subplots
     mat_fig.tight_layout()
-    mat_fig.suptitle(f"Pockels Images with {color_range_radio}-scale color range", fontsize=15, y=1.05)
+    # mat_fig.suptitle(f"Pockels Images with {color_range_radio}-scale color range", fontsize=15, y=1.05)
     for i, key in enumerate(images_dict):
         if n_rows == 1:
             ax = axs

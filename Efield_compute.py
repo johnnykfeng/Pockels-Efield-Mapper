@@ -70,6 +70,7 @@ with st.sidebar:
     
     save_E_field_data = st.checkbox("Save E-field data", value=False)
 
+with st.sidebar:
     wavelength = st.number_input("Wavelength (nm)", value=1550.0)
     n0 = st.number_input("Refractive index", value=2.8)
     d = st.number_input("Path Length (mm)", value=8.17)
@@ -357,7 +358,7 @@ if uploaded_data_files:
                         ax.tick_params(axis='both', which='major', labelsize=matplot_tick_label_size)
                         st.pyplot(fig)
 
-with st.expander("Row-wise Average E-field"):
+with st.expander("Row-wise Average E-field", expanded=True):
     if row_avg_E_field_arrays:
         st.session_state.figure_Efield_profile, ax = plt.subplots(figsize=(matplot_figure_width, matplot_figure_height))
         # Invert the color order by reversing the color array
@@ -368,6 +369,34 @@ with st.expander("Row-wise Average E-field"):
             
             ax.plot(row_avg_E_field_array['row_indices'], row_avg_E_field_array['E_row_avg'], '-',
                     label=f'{filename}', color=colors[i])
+        
+        
+        
+        long_text = (
+            "$T = \\frac{I_{bias}-I_{cross}}{I_{parallel}-I_{off}} = \\sin^2(\\alpha E)$\n\n"
+            "$T$ is the normalized transmission\n"
+            "$E$ is the vertical component of the electric field\n"
+            "$\\alpha=\\frac{\\sqrt{3}\\pi}{2}\\cdot\\frac{d n_o^3 r_{41}}{\\lambda}$ is the Pockels parameter\n\n"
+            f"$d={d}$ mm is the optical path length\n"
+            f"$r_{{41}}={r41} \\times 10^{{-12}}$ m/V is the electro-optic coefficient\n" 
+            f"$n_o={n0}$ is the refractive index\n"
+            f"$\\lambda={wavelength}$ nm is the wavelength of the light\n\n"
+        )
+
+        # Add text annotation to bottom right of E-field profile figure
+        if st.session_state.figure_Efield_profile is not None:
+            # Get figure dimensions
+            fig = st.session_state.figure_Efield_profile
+            fig_width, fig_height = fig.get_size_inches()
+            
+            # Add text in figure but outside axes, in bottom right
+            fig.text(0.68, 0.1, long_text,
+                    horizontalalignment='left',
+                    verticalalignment='bottom',
+                    fontsize=matplot_tick_label_size*0.7,
+                    bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'),
+                    transform=fig.transFigure)
+        
         # Add shaded margins of 5 pixels on left and right
         margin_width = 5
         ax.axvspan(y0, y0 + margin_width, color='orange', alpha=0.2, label='cathode')  # Left margin
@@ -419,10 +448,11 @@ with st.expander("Efield Matplotlib Plots", expanded=True):
             ax.text(bounding_box[0], bounding_box[3]+5, 'anode',
                     color=box_color, fontsize=matplot_tick_label_size, 
                     horizontalalignment='left')
+        st.session_state.mat_fig.suptitle(f"E-field heatmaps {color_range_radio}-scale color range", fontsize=15, y=1.05)
         st.pyplot(st.session_state.mat_fig)
 
 if True:
-    
+ 
     # Create PDF buffer in memory
     pdf_buffer = io.BytesIO()
     with PdfPages(pdf_buffer) as pdf:
