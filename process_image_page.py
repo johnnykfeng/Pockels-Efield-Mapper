@@ -31,39 +31,41 @@ def cached_colored_pockels_images_matplotlib(images_dict: dict,
                                               bounding_box: tuple):
     return colored_pockels_images_matplotlib(images_dict, color_range_radio, color_min, color_max, apply_bounding_box, bounding_box)
     
-st.title("Image Cropper")
-with st.expander("Image Processing"):
+with st.expander("Cropping and Boundary Selection"):
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        crop_range_left = st.number_input("Crop range left", min_value=0, max_value=639, value=145)
+        crop_range_left = st.number_input("Crop range left", min_value=0, max_value=639, value=0)
     with col2:
-        crop_range_right = st.number_input("Crop range right", min_value=0, max_value=639, value=520)
+        crop_range_right = st.number_input("Crop range right", min_value=0, max_value=639, value=639)
     with col3:
-        crop_range_top = st.number_input("Crop range top", min_value=0, max_value=511, value=210)
+        crop_range_top = st.number_input("Crop range top", min_value=0, max_value=511, value=0)
     with col4:
-        crop_range_bottom = st.number_input("Crop range bottom", min_value=0, max_value=511, value=320)
+        crop_range_bottom = st.number_input("Crop range bottom", min_value=0, max_value=511, value=511)
     crop_range_x = [crop_range_left, crop_range_right]
     crop_range_y = [crop_range_top, crop_range_bottom]
     size_x = crop_range_right - crop_range_left
     size_y = crop_range_bottom - crop_range_top
+    with col1:
+        left_border = st.number_input("Left border", min_value=0, max_value=size_x, value=32)
+    with col2:
+        right_border = st.number_input("Right border", min_value=0, max_value=size_x, value=373)
+    with col3:
+        top_border = st.number_input("Top border", min_value=0, max_value=size_y, value=32)
+    with col4:
+        bottom_border = st.number_input("Bottom border", min_value=0, max_value=size_y, value=98)
+    bounding_box = [left_border, top_border, right_border, bottom_border]
+        
     apply_bounding_box = st.checkbox("Apply bounding box", value=True)
-    if apply_bounding_box:
-        with col1:
-            left_border = st.number_input("Left border", min_value=0, max_value=size_x, value=17)
-        with col2:
-            right_border = st.number_input("Right border", min_value=0, max_value=size_x, value=size_x-17)
-        with col3:
-            top_border = st.number_input("Top border", min_value=0, max_value=size_y, value=27)
-        with col4:
-            bottom_border = st.number_input("Bottom border", min_value=0, max_value=size_y, value=size_y-27)
-        bounding_box = [left_border, top_border, right_border, bottom_border]
-    else:
-        bounding_box = None
 
 
 with st.sidebar:
-    uploaded_png_files = st.file_uploader("Upload PNG files", type=["png"], 
+    upload_choice = st.radio("Upload choice", options=["Upload PNG files", "Choose from folder"], index=0)
+    if upload_choice == "Upload PNG files":
+        uploaded_png_files = st.file_uploader("Upload PNG files", type=["png"], 
                                       accept_multiple_files=True, key=f"uploader_{st.session_state.uploader_key}")
+    elif upload_choice == "Choose from folder":
+        raw_data_folder = st.text_input("Enter folder path", value="data")
+        uploaded_png_files = [os.path.join(raw_data_folder, f) for f in os.listdir(raw_data_folder) if f.endswith('.png')]
 
 col1, col2, col3 = st.columns(3)
 with col1:
@@ -84,22 +86,26 @@ if uploaded_png_files:
     for uploaded_png_file in uploaded_png_files:
         img_array = png_to_array(uploaded_png_file)
         img_array = crop_image(img_array, crop_range_x, crop_range_y)
-        st.session_state.img_arrays[uploaded_png_file.name] = img_array
+        if upload_choice == "Upload PNG files":
+            filename = uploaded_png_file.name
+        elif upload_choice == "Choose from folder":
+            filename = os.path.basename(uploaded_png_file)
+        st.session_state.img_arrays[filename] = img_array
         
 with st.expander("Cropped images"):
-    for uploaded_png_file in uploaded_png_files:
-        img_array = st.session_state.img_arrays[uploaded_png_file.name]
+    for img_array, filename in zip(st.session_state.img_arrays.values(), st.session_state.img_arrays.keys()):
+
         vmin, vmax = np.percentile(img_array, (5, 99))
-        color_range = st.slider("Color range", min_value=0.0, max_value=vmax*1.5, value=[vmin, vmax])
-        fig = create_plotly_figure(img_array, title=uploaded_png_file.name, color_range=color_range)
+        color_range = st.slider("Color range", min_value=0.0, max_value=vmax*1.5, value=[vmin, vmax], key=f"color_range_{filename}")
+        fig = create_plotly_figure(img_array, title=filename, color_range=color_range)
         if apply_bounding_box:
             fig.add_shape(type="rect",
                         x0=bounding_box[0], y0=bounding_box[1], x1=bounding_box[2], y1=bounding_box[3],
                         line=dict(color="white", width=2, dash="dash"))
-        st.plotly_chart(fig, title=uploaded_png_file.name)
+        st.plotly_chart(fig, title=filename)
 
 
-if uploaded_png_files:
+if st.session_state.img_arrays:
     
     with st.expander("Matplotlib plots"):
         vmin, vmax = np.percentile(st.session_state.img_arrays["calib_parallel_on.png"], (10, 90))
@@ -119,12 +125,11 @@ if uploaded_png_files:
 
 with save_container.popover("SAVE FILES"):
     
-    if uploaded_png_files:
+    if st.session_state.img_arrays:
         # Create a zip file
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-            for uploaded_png_file in uploaded_png_files:
-                img_array = st.session_state.img_arrays[uploaded_png_file.name]
+            for img_array, filename in zip(st.session_state.img_arrays.values(), st.session_state.img_arrays.keys()):
                 # Create a temporary file in memory
                 img_buffer = io.BytesIO()
                 # Convert array to uint16 (16-bit unsigned integer) which is compatible with PNG
@@ -132,7 +137,7 @@ with save_container.popover("SAVE FILES"):
                 img = Image.fromarray(img_array)
                 img.save(img_buffer, format='PNG')
                 # Add the image to the zip file
-                zip_file.writestr(uploaded_png_file.name, img_buffer.getvalue())
+                zip_file.writestr(filename, img_buffer.getvalue())
         
         # Prepare the zip file for download
         zip_buffer.seek(0)

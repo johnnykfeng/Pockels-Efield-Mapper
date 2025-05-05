@@ -3,7 +3,7 @@ import numpy as np
 import os
 import glob
 
-from image_process import (
+from modules.image_process import (
     png_to_array,
     crop_image,
     find_dead_pixels,
@@ -15,13 +15,13 @@ from image_process import (
     save_array_to_csv,
     csv_to_array,
 )
-from plotting_modules import (
+from modules.plotting_modules import (
     create_plotly_figure,
     plot_histogram,
     image_array_statistics,
     save_plotly_figure,
 )
-from pockels_math import alpha, E_ref, E_field_from_T
+from modules.pockels_math import alpha, E_ref, E_field_from_T
 
 st.set_page_config(layout="wide")
 

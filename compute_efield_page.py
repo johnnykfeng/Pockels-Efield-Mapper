@@ -8,8 +8,8 @@ import io
 
 # Internal imports
 from utils import remove_extension, get_metadata_from_filename
-from pockels_math import alpha, E_ref, E_field_from_T
-from image_process import (
+from modules.pockels_math import alpha, E_ref, E_field_from_T
+from modules.image_process import (
     png_to_array,
     crop_image,
     impute_bad_pixels,
@@ -17,7 +17,7 @@ from image_process import (
     save_array_to_png,
     find_bad_pixels
 )
-from plotting_modules import (
+from modules.plotting_modules import (
     create_plotly_figure,
     plot_histogram,
     image_array_statistics,
@@ -38,6 +38,7 @@ if "mat_fig" not in st.session_state:
     st.session_state.mat_fig = None
 
 with st.sidebar:
+    sensor_id = st.text_input("Sensor ID", value="")
     fig_height = st.slider("Figure height", min_value=100, max_value=1000, value=300)
     matplot_axis_label_size = st.slider("Axis label size", min_value=1, max_value=20, value=10)
     matplot_tick_label_size = st.slider("Tick label size", min_value=1, max_value=20, value=10)
@@ -73,7 +74,7 @@ with st.sidebar:
 with st.sidebar:
     wavelength = st.number_input("Wavelength (nm)", value=1550.0)
     n0 = st.number_input("Refractive index", value=2.8)
-    d = st.number_input("Path Length (mm)", value=8.17)
+    d = st.number_input("Path Length (mm)", value=8.75)
     r41 = st.number_input("Electro-optic coefficient r41 (1e-12 m/V)", value=5.5)
     alpha = alpha(wavelength, n0, d, r41)
     E_ref = E_ref(wavelength, n0, d, r41)
@@ -84,7 +85,7 @@ with st.sidebar:
         "Values and equations taken from: \n\nCola, A., Dominici, L., & Valletta, A. (2022). Optical Writing and Electro-Optic Imaging of Reversible Space Charges in Semi-Insulating CdTe Diodes. Sensors, 22(4). https://doi.org/10.3390/s22041579"
     )
 
-with st.expander("Image Processing"):
+with st.expander("Cropping and Boundary Selection"):
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         crop_range_left = st.number_input("Crop range left", min_value=0, max_value=639, value=0)
@@ -370,8 +371,6 @@ with st.expander("Row-wise Average E-field", expanded=True):
             ax.plot(row_avg_E_field_array['row_indices'], row_avg_E_field_array['E_row_avg'], '-',
                     label=f'{filename}', color=colors[i])
         
-        
-        
         long_text = (
             "$T = \\frac{I_{bias}-I_{cross}}{I_{parallel}-I_{off}} = \\sin^2(\\alpha E)$\n\n"
             "$T$ is the normalized transmission\n"
@@ -451,7 +450,7 @@ with st.expander("Efield Matplotlib Plots", expanded=True):
         st.session_state.mat_fig.suptitle(f"E-field heatmaps {color_range_radio}-scale color range", fontsize=15, y=1.05)
         st.pyplot(st.session_state.mat_fig)
 
-if True:
+if st.session_state.mat_fig is not None and st.session_state.figure_Efield_profile is not None:
  
     # Create PDF buffer in memory
     pdf_buffer = io.BytesIO()
@@ -464,7 +463,7 @@ if True:
     
     
     with st.popover("Download PDF"):
-        sensor_id = st.text_input("Sensor_ID", value="Sensor_ID")
+        # sensor_id = st.text_input("Sensor_ID", value="Sensor_ID")
         st.download_button(
             label="Download E-field plots as PDF",
             data=pdf_buffer,
