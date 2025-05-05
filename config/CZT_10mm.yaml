@@ -1,0 +1,25 @@
+efield:
+  path_length: 10 # mm
+  wavelength: 1550 # nm
+  n0: 2.8 # refractive index
+  r41: 5.5 # 1e-12 m/V electro-optic coefficient
+
+  top_border: 32 # pixels
+  bottom_border: 98 # pixels
+  left_border: 32 # pixels
+  right_border: 373 # pixels
+
+cropping:
+  crop_y0: 145 # pixels
+  crop_y1: 520 # pixels
+  crop_x0: 210 # pixels
+  crop_x1: 320 # pixels
+
+  left_border: 17 # pixels
+  right_border: 358 # pixels
+  top_border: 27 # pixels
+  bottom_border: 83 # pixels
+
+
+
+
