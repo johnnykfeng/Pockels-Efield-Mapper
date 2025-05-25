@@ -130,15 +130,15 @@ if data_source == "Data Uploader":
         uploaded_data_files = st.file_uploader(
             "Upload Bias Images", type=["png"], accept_multiple_files=True)
 elif data_source == "Sample Data":
-    calib_data_folder = Path("sample_data/cropped_images/calib")
-    bias_data_folder = Path("sample_data/cropped_images/bias")
+    calib_data_folder = Path("SAMPLE_DATA/cropped_images/calib")
+    bias_data_folder = Path("SAMPLE_DATA/cropped_images/bias")
     
     # Check if sample data directories exist (they won't in deployed environment)
     if calib_data_folder.exists() and bias_data_folder.exists():
         uploaded_calib_files = list(calib_data_folder.glob("*.png"))
         uploaded_data_files = list(bias_data_folder.glob("*.png"))
     else:
-        st.warning("⚠️ Sample data is not available in the deployed environment. Please use 'Data Uploader' to upload your own files.")
+        st.warning("⚠️ Sample data is not available.")
         uploaded_calib_files = []
         uploaded_data_files = []
 
