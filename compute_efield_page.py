@@ -137,6 +137,7 @@ elif data_source == "Sample Data":
     if calib_data_folder.exists() and bias_data_folder.exists():
         uploaded_calib_files = list(calib_data_folder.glob("*.png"))
         uploaded_data_files = list(bias_data_folder.glob("*.png"))
+        uploaded_data_files.sort()
     else:
         st.warning("⚠️ Sample data is not available.")
         uploaded_calib_files = []
