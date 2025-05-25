@@ -381,7 +381,7 @@ if uploaded_data_files:
                         ax.set_xlabel('Row position (pixels)', fontsize=matplot_axis_label_size)
                         ax.set_ylabel('Average Ez-field (V/m)', fontsize=matplot_axis_label_size)
                         ax.set_title(f'Row-wise Average E-field for {filename}', fontsize=matplot_axis_label_size)
-                        ax.grid(True)
+                        ax.grid(True, alpha=0.3)
                         # Format y-axis ticks in scientific notation
                         ax.ticklabel_format(axis='y', style='sci', scilimits=(0,0))
                         # Increase tick label font size
@@ -444,7 +444,7 @@ with st.expander("Row-wise Average E-field", expanded=True):
         ax.set_xlabel('Row position (pixels)', fontsize=matplot_axis_label_size)
         ax.set_ylabel('Average E-field (V/m)', fontsize=matplot_axis_label_size)
         ax.set_title(f'Row-wise Average E-field', fontsize=matplot_axis_label_size)
-        ax.grid(True)
+        ax.grid(True, alpha=0.5)
         ax.ticklabel_format(axis='y', style='sci', scilimits=(0,0))
         ax.tick_params(axis='both', which='major', labelsize=matplot_tick_label_size)
         # Place legend outside the plot
