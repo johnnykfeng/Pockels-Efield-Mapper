@@ -145,10 +145,6 @@ elif data_source == "Sample Data":
 with st.expander("Check Data"):
     st.write(f"Number of calibration files: {len(uploaded_calib_files)}")
     st.write(f"Number of bias files: {len(uploaded_data_files)}")
-    for uploaded_calib_file in uploaded_calib_files:
-        st.image(uploaded_calib_file)
-    for uploaded_data_file in uploaded_data_files:
-        st.image(uploaded_data_file)
     
 calib_img_arrays = {}
 
