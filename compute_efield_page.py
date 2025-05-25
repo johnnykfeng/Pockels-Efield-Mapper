@@ -48,37 +48,35 @@ if "mat_fig" not in st.session_state:
 
 with st.sidebar: # Figure parameters
     sensor_id = st.text_input("Sensor ID", value="")
+    st.subheader("Matplotlib Figure Settings")
     fig_height = st.slider("Figure height", min_value=100, max_value=1000, value=300)
-    matplot_axis_label_size = st.slider("Axis label size", min_value=1, max_value=20, value=10)
-    matplot_tick_label_size = st.slider("Tick label size", min_value=1, max_value=20, value=10)
-    matplot_figure_width = st.slider("Figure width", min_value=1, max_value=20, value=6)
-    matplot_figure_height = st.slider("Figure height", min_value=1, max_value=20, value=4)
-    
     col1, col2 = st.columns(2)  
     with col1:
-        min_pctl = st.number_input(
-            "Lower range percentile", min_value=0.0, max_value=50.0, value=1.0)
+        matplot_axis_label_size = st.slider("Axis label size", min_value=1, max_value=20, value=10)
+        matplot_tick_label_size = st.slider("Tick label size", min_value=1, max_value=20, value=10)
         color_map = st.selectbox(
             "Color map Raw Image", options=["jet", "viridis", "magma", "plasma", "inferno", "cividis"],
             index=1)
+        min_pctl = st.number_input(
+            "Lower range percentile", min_value=0.0, max_value=50.0, value=1.0)
+        invert_color_map = st.checkbox("Invert color map", value=False)
+        if invert_color_map:
+            color_map = color_map + "_r"
     with col2:
-        max_pctl = st.number_input(
-            "Upper range percentile", min_value=50.0, max_value=100.0, value=99.0)
+        matplot_figure_width = st.slider("Figure width", min_value=1, max_value=20, value=6)
+        matplot_figure_height = st.slider("Figure height", min_value=1, max_value=20, value=4)
         color_map_E_field = st.selectbox(
             "Color map E-field", options=["jet", "viridis", "magma", "plasma", "inferno", "cividis"],
             index=0)
+        max_pctl = st.number_input(
+            "Upper range percentile", min_value=50.0, max_value=100.0, value=99.0)
+            
     global_range_pctl = [min_pctl, max_pctl]
     # Color map
-    invert_color_map = st.checkbox("Invert color map", value=False)
-    if invert_color_map:
-        color_map = color_map + "_r"
 
     dead_pixel_threshold = st.slider("Dead pixel threshold", min_value=0, max_value=1000, value=100)
     hot_pixel_threshold = st.slider("Hot pixel threshold", min_value=10e3, max_value=100e3, value=20e3)
-    # fix_dead_pixels = st.checkbox("Fix dead pixels", value=False)
     fix_bad_pixels = st.checkbox("Fix bad pixels", value=False)
-    
-    save_E_field_data = st.checkbox("Save E-field data", value=False)
 
 with st.sidebar: # Pockels parameters
     wavelength = st.number_input("Wavelength (nm)", value=config["wavelength"])
@@ -217,9 +215,9 @@ if calib_img_arrays:
         st.warning("Not all calibration images are uploaded")
 
 
-#######################
-### DATA PROCESSING ###
-#######################
+###########################################
+### DATA PROCESSING ######################
+###########################################
 raw_image_plotly_figures = {}
 E_field_arrays = {}
 E_field_plotly_figures = {}
@@ -391,14 +389,17 @@ if uploaded_data_files:
                         st.pyplot(fig)
 
 with st.expander("Row-wise Average E-field", expanded=True):
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         auto_ylim = st.checkbox("Auto y-axis limits", value=False)
     with col2:
-        ylim_min = st.number_input("E-field lower limit (V/m)", min_value=0.0, max_value=1e6, value=Emin)
+        include_long_text = st.checkbox("Include E-field Equations", value=False)
     with col3:
+        ylim_min = st.number_input("E-field lower limit (V/m)", min_value=0.0, max_value=1e6, value=Emin)
+    with col4:
         ylim_max = st.number_input("E-field upper limit (V/m)", min_value=0.0, value=Emax)
-    ylim = [ylim_min, ylim_max]
+    with col5:
+        edge_margin = st.number_input("Edge margin (pixels)", min_value=0, max_value=20, value=5)
     if row_avg_E_field_arrays:
         st.session_state.figure_Efield_profile, ax = plt.subplots(figsize=(matplot_figure_width, matplot_figure_height))
         # Invert the color order by reversing the color array
@@ -426,21 +427,20 @@ with st.expander("Row-wise Average E-field", expanded=True):
             # Get figure dimensions
             fig = st.session_state.figure_Efield_profile
             fig_width, fig_height = fig.get_size_inches()
-            
-            # Add text in figure but outside axes, in bottom right
-            fig.text(0.68, 0.1, long_text,
-                    horizontalalignment='left',
-                    verticalalignment='bottom',
-                    fontsize=matplot_tick_label_size*0.7,
-                    bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'),
-                    transform=fig.transFigure)
+            if include_long_text:
+                # Add text in figure but outside axes, in bottom right
+                fig.text(0.68, 0.1, long_text,
+                        horizontalalignment='left',
+                        verticalalignment='bottom',
+                        fontsize=matplot_tick_label_size*0.7,
+                        bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'),
+                        transform=fig.transFigure)
         
         # Add shaded margins of 5 pixels on left and right
-        margin_width = 5
-        ax.axvspan(y0, y0 + margin_width, color='orange', alpha=0.2, label='cathode')  # Left margin
-        ax.axvspan(y1 - margin_width, y1, color='green', alpha=0.2, label='anode')  # Right margin
+        ax.axvspan(y0, y0 + edge_margin, color='orange', alpha=0.2, label='cathode')  # Left margin
+        ax.axvspan(y1 - edge_margin, y1, color='green', alpha=0.2, label='anode')  # Right margin
         if not auto_ylim:
-            ax.set_ylim(ylim)  # Set minimum y value to 0 while keeping auto maximum
+            ax.set_ylim([ylim_min, ylim_max])  # Set minimum y value to 0 while keeping auto maximum
         ax.set_xlabel('Row position (pixels)', fontsize=matplot_axis_label_size)
         ax.set_ylabel('Average E-field (V/m)', fontsize=matplot_axis_label_size)
         ax.set_title(f'Row-wise Average E-field', fontsize=matplot_axis_label_size)
