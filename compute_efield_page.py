@@ -5,6 +5,8 @@ import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import io
+import tomllib
+from pathlib import Path
 
 # Internal imports
 from utils import remove_extension, get_metadata_from_filename
@@ -14,14 +16,11 @@ from modules.image_process import (
     crop_image,
     impute_bad_pixels,
     cap_array,
-    save_array_to_png,
     find_bad_pixels
 )
 from modules.plotting_modules import (
-    create_plotly_figure,
     plot_histogram,
     image_array_statistics,
-    save_plotly_figure,
     colored_pockels_images_matplotlib,
     heatmap_plot_with_bounding_box
 
@@ -32,12 +31,22 @@ st.set_page_config(layout="wide")
 st.title("Pockels Image Analyzer")
 st.write("Upload a PNG image to analyze its data.")
 
+
+config_select = st.radio("CZT Configuration", options=["XMED", "CZT-10mm"], horizontal=True)
+
+if config_select == "XMED":
+    with open("config/XMED.toml", "rb") as f:
+        config = tomllib.load(f)
+elif config_select == "CZT-10mm":
+    with open("config/CZT_10mm.toml", "rb") as f:
+        config = tomllib.load(f)
+
 if "figure_Efield_profile" not in st.session_state:
     st.session_state.figure_Efield_profile = None
 if "mat_fig" not in st.session_state:
     st.session_state.mat_fig = None
 
-with st.sidebar:
+with st.sidebar: # Figure parameters
     sensor_id = st.text_input("Sensor ID", value="")
     fig_height = st.slider("Figure height", min_value=100, max_value=1000, value=300)
     matplot_axis_label_size = st.slider("Axis label size", min_value=1, max_value=20, value=10)
@@ -71,11 +80,11 @@ with st.sidebar:
     
     save_E_field_data = st.checkbox("Save E-field data", value=False)
 
-with st.sidebar:
-    wavelength = st.number_input("Wavelength (nm)", value=1550.0)
-    n0 = st.number_input("Refractive index", value=2.8)
-    d = st.number_input("Path Length (mm)", value=8.75)
-    r41 = st.number_input("Electro-optic coefficient r41 (1e-12 m/V)", value=5.5)
+with st.sidebar: # Pockels parameters
+    wavelength = st.number_input("Wavelength (nm)", value=config["wavelength"])
+    n0 = st.number_input("Refractive index", value=config["n0"])
+    d = st.number_input("Path Length (mm)", value=config["path_length"])
+    r41 = st.number_input("Electro-optic coefficient r41 (1e-12 m/V)", value=config["r41"])
     alpha = alpha(wavelength, n0, d, r41)
     E_ref = E_ref(wavelength, n0, d, r41)
     st.write(f"Alpha: {alpha:.2e} m/V")
@@ -100,26 +109,32 @@ with st.expander("Cropping and Boundary Selection"):
     size_x = crop_range_right - crop_range_left
     size_y = crop_range_bottom - crop_range_top
     with col1:
-        left_border = st.number_input("Left border", min_value=0, max_value=size_x, value=0)
+        left_border = st.number_input("Left border", min_value=0, max_value=size_x, value=config["box_left"])
     with col2:
-        right_border = st.number_input("Right border", min_value=0, max_value=size_x, value=size_x)
+        right_border = st.number_input("Right border", min_value=0, max_value=size_x, value=config["box_right"])
     with col3:
-        top_border = st.number_input("Top border", min_value=0, max_value=size_y, value=0)
+        top_border = st.number_input("Top border", min_value=0, max_value=size_y, value=config["box_top"])
     with col4:
-        bottom_border = st.number_input("Bottom border", min_value=0, max_value=size_y, value=size_y)
+        bottom_border = st.number_input("Bottom border", min_value=0, max_value=size_y, value=config["box_bottom"])
     bounding_box = [left_border, top_border, right_border, bottom_border]
         
     apply_bounding_box = st.checkbox("Apply bounding box", value=True)
 
+data_source = st.radio("Data source", options=["Data Uploader", "Sample Data"], horizontal=True)
+if data_source == "Data Uploader":
+    col1, col2 = st.columns(2)
+    with col1:
+        uploaded_calib_files = st.file_uploader(
+            "Upload Calibration Images", type=["png"], accept_multiple_files=True)
+    with col2:
+        uploaded_data_files = st.file_uploader(
+            "Upload Bias Images", type=["png"], accept_multiple_files=True)
+elif data_source == "Sample Data":
+    calib_data_folder = Path("sample_data/cropped_images/calib")
+    bias_data_folder = Path("sample_data/cropped_images/bias")
+    uploaded_calib_files = list(calib_data_folder.glob("*.png"))
+    uploaded_data_files = list(bias_data_folder.glob("*.png"))
 
-col1, col2 = st.columns(2)
-with col1:
-    uploaded_calib_files = st.file_uploader(
-        "Upload Calibration Images", type=["png"], accept_multiple_files=True)
-with col2:
-    uploaded_data_files = st.file_uploader(
-        "Upload Bias Images", type=["png"], accept_multiple_files=True)
-        
 calib_img_arrays = {}
 
 
@@ -184,7 +199,9 @@ if calib_img_arrays:
                 st.plotly_chart(heatmap_plot_with_bounding_box(
                     calib_parallel_minus_cross, "Parallel minus Cross", color_map, color_range, 
                     fig_height=fig_height, bounding_box=bounding_box))
-    except:
+    except Exception as e:
+        print(f"Error: {e}")
+        st.warning(f"Error: {e}")
         st.warning("Not all calibration images are uploaded")
 
 
@@ -325,7 +342,9 @@ if uploaded_data_files:
                         y1 = max(0, min(y1, size_image[0]-1))
                         try:
                             E_field_roi = E_field_array[y0:y1, x0:x1]
-                        except:
+                        except Exception as e:
+                            print(f"Error: {e}")
+                            st.warning(f"Error: {e}")
                             st.write(f"Error: Bounding box exceeds image dimensions")
                             st.write(f"Size of image: {size_image}")
                             st.write(f"Bounding box: {bounding_box}")
@@ -360,6 +379,14 @@ if uploaded_data_files:
                         st.pyplot(fig)
 
 with st.expander("Row-wise Average E-field", expanded=True):
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        auto_ylim = st.checkbox("Auto y-axis limits", value=False)
+    with col2:
+        ylim_min = st.number_input("E-field lower limit (V/m)", min_value=0.0, max_value=1e6, value=Emin)
+    with col3:
+        ylim_max = st.number_input("E-field upper limit (V/m)", min_value=0.0, value=Emax)
+    ylim = [ylim_min, ylim_max]
     if row_avg_E_field_arrays:
         st.session_state.figure_Efield_profile, ax = plt.subplots(figsize=(matplot_figure_width, matplot_figure_height))
         # Invert the color order by reversing the color array
@@ -400,7 +427,8 @@ with st.expander("Row-wise Average E-field", expanded=True):
         margin_width = 5
         ax.axvspan(y0, y0 + margin_width, color='orange', alpha=0.2, label='cathode')  # Left margin
         ax.axvspan(y1 - margin_width, y1, color='green', alpha=0.2, label='anode')  # Right margin
-        ax.set_ylim(bottom=0)  # Set minimum y value to 0 while keeping auto maximum
+        if not auto_ylim:
+            ax.set_ylim(ylim)  # Set minimum y value to 0 while keeping auto maximum
         ax.set_xlabel('Row position (pixels)', fontsize=matplot_axis_label_size)
         ax.set_ylabel('Average E-field (V/m)', fontsize=matplot_axis_label_size)
         ax.set_title(f'Row-wise Average E-field', fontsize=matplot_axis_label_size)
