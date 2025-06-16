@@ -118,7 +118,10 @@ with st.expander("Cropping and Boundary Selection"):
         
     apply_bounding_box = st.checkbox("Apply bounding box", value=True)
 
-data_source = st.radio("Data source", options=["Data Uploader", "Sample Data"], horizontal=True)
+data_source = st.radio("Data source", 
+                       options=["Data Uploader", "Sample Data"], 
+                       horizontal=True,
+                       index=1)
 if data_source == "Data Uploader":
     col1, col2 = st.columns(2)
     with col1:
