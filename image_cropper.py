@@ -1,17 +1,12 @@
 import streamlit as st
-import st_tailwind as tw
 import numpy as np
-import os
 from PIL import Image
-from modules.image_process import png_to_array, crop_image, save_array_to_png
+from modules.image_process import png_to_array, crop_image
 from modules.plotting_modules import create_plotly_figure, colored_pockels_images_matplotlib
 import time
-import matplotlib.pyplot as plt
-from matplotlib import patches
 import zipfile
 import io
 st.set_page_config(layout="wide")
-tw.initialize_tailwind()
 
 if "uploader_key" not in st.session_state:
     st.session_state.uploader_key = 0
