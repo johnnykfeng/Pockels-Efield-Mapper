@@ -257,8 +257,8 @@ with st.sidebar:
 if uploaded_data_files:
     for uploaded_data_file in uploaded_data_files:
         filename = remove_extension(uploaded_data_file.name)
-        bias, xray_flux = get_metadata_from_filename(filename)
-        st.write(f"Bias: {bias}, Xray flux: {xray_flux}")
+        # bias, xray_flux = get_metadata_from_filename(filename)
+        # st.write(f"Bias: {bias}, Xray flux: {xray_flux}")
         img_array = png_to_array(uploaded_data_file, dtype=np.float32)
         # img_array = img_array.astype(float)
         img_array = crop_image(img_array, crop_range_x, crop_range_y)
