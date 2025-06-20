@@ -7,6 +7,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 import io
 import tomllib
 from pathlib import Path
+import pandas as pd
 
 # Internal imports
 from utils import remove_extension, get_metadata_from_filename
@@ -40,6 +41,8 @@ if config_select == "XMED":
 elif config_select == "CZT-10mm":
     with open("config/CZT_10mm.toml", "rb") as f:
         config = tomllib.load(f)
+        
+px_to_mm = 2.0/69.0 # mm/pixel
 
 if "figure_Efield_profile" not in st.session_state:
     st.session_state.figure_Efield_profile = None
@@ -457,6 +460,43 @@ with st.expander("Row-wise Average E-field", expanded=True):
         st.pyplot(st.session_state.figure_Efield_profile)
     else:
         st.warning("No row-wise average E-field data available")
+    
+    if row_avg_E_field_arrays:
+        # Convert row-wise E-field data to pandas DataFrame
+        df_list = []
+        for filename, row_data in row_avg_E_field_arrays.items():
+            # Calculate gradient on the raw numpy arrays
+            row_indices = np.array(row_data['row_indices'])
+            e_field_values = np.array(row_data['E_row_avg'])
+            slope_values = np.gradient(e_field_values, row_indices)
+            mean_slope = np.mean(slope_values)
+            slope_m = mean_slope / (px_to_mm*1e-3)
+            epsilon_0 = 8.8541878128e-12 # C^2/(N*m^2)
+            e_coulomb = 1.60217663e-19 # C
+            rho = (-1)*slope_m*epsilon_0*1e-6/(e_coulomb) # 1/m^3
+            
+            df = pd.DataFrame({
+                # 'Row Indices': [row_indices],
+                # 'E-field (V/m)': [e_field_values],
+                # 'slope': [slope_values],
+                'index': [filename.split('_')[-1]],
+                'slope [E/pixel]': [mean_slope],
+                'pixel2mm': [px_to_mm],
+                'rho [1/m^3]': [rho],
+                'rho_scientific': [f"{rho:.2e}"],
+                'Filename': [filename]
+            })
+            df_list.append(df)
+        
+        combined_df = pd.concat(df_list)
+        st.dataframe(combined_df)
+        st.download_button(
+            label="Download Row-wise Average E-field Data",
+            data=combined_df.to_csv(index=False),
+            file_name=f"{sensor_id}_row_avg_Efield_data.csv" \
+                if sensor_id else "row_avg_Efield_data.csv",
+            mime="text/csv"
+        )
 
 with st.expander("Efield Matplotlib Plots", expanded=True):
     if E_field_arrays:
