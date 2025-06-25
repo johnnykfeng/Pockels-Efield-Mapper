@@ -281,7 +281,8 @@ with col2:
     show_transmission_image = st.checkbox("Show transmission image", value=False, key=f"show_transmission_image")
 with col3:
     calculate_E_field = st.checkbox("Calculate E-field", value=True, key=f"do_E_field")
-    calculate_row_avg_E_field = st.checkbox("Show row-wise average E-field", value=True, key="row_avg_E_field")
+    calculate_row_avg_E_field = st.checkbox("Calculate row-wise average E-field", value=True, key="row_avg_E_field")
+    show_Efield_profile = st.checkbox("Show E-field profile per image", value=False, key="show_Efield_profile")
 with col4:
     cathode_margin = st.number_input("Cathode margin (pixels)", min_value=-20, max_value=20, value=0)
     anode_margin = st.number_input("Anode margin (pixels)", min_value=-20, max_value=20, value=0)
@@ -415,28 +416,29 @@ if uploaded_data_files:
                         row_indices = np.arange(y0, y1)
                         row_avg_E_field_arrays[filename] = {"E_row_avg": row_avg, 
                                                             "row_indices": row_indices}
-                        # Create figure for row average plot
-                        fig, ax = plt.subplots(figsize=(matplot_figure_width, matplot_figure_height))
-                        # Use actual pixel indices from original image
-                        ax.plot(row_indices, row_avg, '-')
-                        # Add shaded margins of 5 pixels on left and right
-                        margin_width = 5
-                        ax.axvspan(y0, y0 + margin_width, color='orange', alpha=0.1)  # Left margin
-                        ax.axvspan(y1 - margin_width, y1, color='green', alpha=0.1)  # Right margin
-                        # Add text annotations for anode and cathode regions
-                        ax.text(y0 + margin_width/2, ax.get_ylim()[0]*1.02, 'cathode', 
-                               horizontalalignment='center', verticalalignment='bottom', rotation=90)
-                        ax.text(y1 - margin_width/2, ax.get_ylim()[0]*1.02, 'anode',
-                               horizontalalignment='center', verticalalignment='bottom', rotation=90)
-                        ax.set_xlabel('Row position (pixels)', fontsize=matplot_axis_label_size)
-                        ax.set_ylabel('Average Ez-field (V/m)', fontsize=matplot_axis_label_size)
-                        ax.set_title(f'Row-wise Average E-field for {filename}', fontsize=matplot_axis_label_size)
-                        ax.grid(True, alpha=0.3)
-                        # Format y-axis ticks in scientific notation
-                        ax.ticklabel_format(axis='y', style='sci', scilimits=(0,0))
-                        # Increase tick label font size
-                        ax.tick_params(axis='both', which='major', labelsize=matplot_tick_label_size)
-                        st.pyplot(fig)
+                        if show_Efield_profile:
+                            # Create figure for row average plot
+                            fig, ax = plt.subplots(figsize=(matplot_figure_width, matplot_figure_height))
+                            # Use actual pixel indices from original image
+                            ax.plot(row_indices, row_avg, '-')
+                            # Add shaded margins of 5 pixels on left and right
+                            margin_width = 5
+                            ax.axvspan(y0, y0 + margin_width, color='orange', alpha=0.1)  # Left margin
+                            ax.axvspan(y1 - margin_width, y1, color='green', alpha=0.1)  # Right margin
+                            # Add text annotations for anode and cathode regions
+                            ax.text(y0 + margin_width/2, ax.get_ylim()[0]*1.02, 'cathode', 
+                                horizontalalignment='center', verticalalignment='bottom', rotation=90)
+                            ax.text(y1 - margin_width/2, ax.get_ylim()[0]*1.02, 'anode',
+                                horizontalalignment='center', verticalalignment='bottom', rotation=90)
+                            ax.set_xlabel('Row position (pixels)', fontsize=matplot_axis_label_size)
+                            ax.set_ylabel('Average Ez-field (V/m)', fontsize=matplot_axis_label_size)
+                            ax.set_title(f'Row-wise Average E-field for {filename}', fontsize=matplot_axis_label_size)
+                            ax.grid(True, alpha=0.3)
+                            # Format y-axis ticks in scientific notation
+                            ax.ticklabel_format(axis='y', style='sci', scilimits=(0,0))
+                            # Increase tick label font size
+                            ax.tick_params(axis='both', which='major', labelsize=matplot_tick_label_size)
+                            st.pyplot(fig)
 
 with st.expander("Row-wise Average E-field", expanded=True):
     col1, col2, col3, col4, col5 = st.columns(5)
@@ -473,18 +475,18 @@ with st.expander("Row-wise Average E-field", expanded=True):
         )
 
         # Add text annotation to bottom right of E-field profile figure
-        if st.session_state.figure_Efield_profile is not None:
+        if st.session_state.figure_Efield_profile is not None and include_long_text:
             # Get figure dimensions
             fig = st.session_state.figure_Efield_profile
             fig_width, fig_height = fig.get_size_inches()
-            if include_long_text:
-                # Add text in figure but outside axes, in bottom right
-                fig.text(0.68, 0.1, long_text,
-                        horizontalalignment='left',
-                        verticalalignment='bottom',
-                        fontsize=matplot_tick_label_size*0.7,
-                        bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'),
-                        transform=fig.transFigure)
+            # if include_long_text:
+            # Add text in figure but outside axes, in bottom right
+            fig.text(0.68, 0.1, long_text,
+                    horizontalalignment='left',
+                    verticalalignment='bottom',
+                    fontsize=matplot_tick_label_size*0.7,
+                    bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'),
+                    transform=fig.transFigure)
         
         # Add shaded margins of 5 pixels on left and right
         ax.axvspan(y0, y0 + edge_margin, color='orange', alpha=0.2, label='cathode')  # Left margin
