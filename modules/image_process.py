@@ -376,8 +376,8 @@ def find_vertical_edges(image, edge_threshold1=100, edge_threshold2=300, mean_th
 def find_sensor_edges(image_path, 
                       edge_threshold1=50, 
                       edge_threshold2=100, 
-                      mean_threshold=6.0,
-                      plot=True):
+                      mean_threshold=6.0):
+    
     if isinstance(image_path, str):
         image = png_to_array(image_path)
     elif isinstance(image_path, np.ndarray):
@@ -385,7 +385,7 @@ def find_sensor_edges(image_path,
     else:
         raise ValueError("Image path must be a string or a numpy array")
     
-    edges = canny_edge_method(image, threshold1=edge_threshold1, threshold2=edge_threshold2)
+    canny_edges = canny_edge_method(image, threshold1=edge_threshold1, threshold2=edge_threshold2)
     # Find both horizontal and vertical edges
     top_edge, bottom_edge, horizontal_edge_strength = find_horizontal_edges(image, 
                                                   edge_threshold1=edge_threshold1, 
@@ -396,56 +396,128 @@ def find_sensor_edges(image_path,
                                                 edge_threshold2=edge_threshold2, 
                                                 mean_threshold=mean_threshold)
 
-    if plot:
-        fig, axs = plt.subplots(3, 2, figsize=(12, 8))
+    # if plot:
+    #     fig, axs = plt.subplots(3, 2, figsize=(12, 8))
+    #     plt.subplots_adjust(hspace=0.5, wspace=0.4)
         
-        axs[0, 0].imshow(image, cmap='gray')
-        axs[0, 0].set_title('Original Image')
-        axs[0, 0].axhline(y=top_edge, color='red', linestyle='--', alpha=0.7)
-        axs[0, 0].axhline(y=bottom_edge, color='red', linestyle='--', alpha=0.7)
-        axs[0, 0].axvline(x=left_edge, color='blue', linestyle='--', alpha=0.7)
-        axs[0, 0].axvline(x=right_edge, color='blue', linestyle='--', alpha=0.7)
+    #     axs[0, 0].imshow(image, cmap='gray')
+    #     axs[0, 0].set_title('Original Image')
+    #     axs[0, 0].axhline(y=top_edge, color='red', linestyle='--', alpha=0.7)
+    #     axs[0, 0].axhline(y=bottom_edge, color='red', linestyle='--', alpha=0.7)
+    #     axs[0, 0].axvline(x=left_edge, color='blue', linestyle='--', alpha=0.7)
+    #     axs[0, 0].axvline(x=right_edge, color='blue', linestyle='--', alpha=0.7)
 
-        axs[0, 1].imshow(edges, cmap='gray')
-        axs[0, 1].set_title('Canny Edge Method')
+    #     axs[0, 1].imshow(canny_edges, cmap='gray')
+    #     axs[0, 1].set_title('Canny Edge Method')
 
-        axs[1, 0].plot(np.sum(edges, axis=1), color='green', alpha=0.7)
-        axs[1, 0].set_title('Horizontal Edge Strength')
-        axs[1, 0].grid(True, linestyle='--', alpha=0.5)
-        axs[1, 0].axvline(x=top_edge, color='red', linestyle='--', alpha=0.7)
-        axs[1, 0].axvline(x=bottom_edge, color='red', linestyle='--', alpha=0.7)
-        axs[1, 0].axhline(y=np.mean(horizontal_edge_strength)*mean_threshold, color='black', linestyle='--', alpha=0.7)
-        axs[1, 0].set_xlabel('Row Index')
-        axs[1, 0].set_ylabel('Edge Strength')
+    #     axs[1, 0].plot(np.sum(canny_edges, axis=1), color='green', alpha=0.7)
+    #     axs[1, 0].set_title('Horizontal Edge Strength')
+    #     axs[1, 0].grid(True, linestyle='--', alpha=0.5)
+    #     axs[1, 0].axvline(x=top_edge, color='red', linestyle='--', alpha=0.7)
+    #     axs[1, 0].axvline(x=bottom_edge, color='red', linestyle='--', alpha=0.7)
+    #     axs[1, 0].axhline(y=np.mean(horizontal_edge_strength)*mean_threshold, color='black', linestyle='--', alpha=0.7)
+    #     axs[1, 0].set_xlabel('Row Pixel Index')
+    #     axs[1, 0].set_ylabel('Edge Strength')
 
-        axs[1, 1].plot(np.sum(edges, axis=0), color='green', alpha=0.7)
-        axs[1, 1].set_title('Vertical Edge Strength')
-        axs[1, 1].grid(True, linestyle='--', alpha=0.5)
-        axs[1, 1].axvline(x=left_edge, color='blue', linestyle='--', alpha=0.7)
-        axs[1, 1].axvline(x=right_edge, color='blue', linestyle='--', alpha=0.7)
-        axs[1, 1].axhline(y=np.mean(vertical_edge_strength)*mean_threshold, color='black', linestyle='--', alpha=0.7)
-        axs[1, 1].set_xlabel('Column Index')
-        axs[1, 1].set_ylabel('Edge Strength')
+    #     axs[1, 1].plot(np.sum(canny_edges, axis=0), color='green', alpha=0.7)
+    #     axs[1, 1].set_title('Vertical Edge Strength')
+    #     axs[1, 1].grid(True, linestyle='--', alpha=0.5)
+    #     axs[1, 1].axvline(x=left_edge, color='blue', linestyle='--', alpha=0.7)
+    #     axs[1, 1].axvline(x=right_edge, color='blue', linestyle='--', alpha=0.7)
+    #     axs[1, 1].axhline(y=np.mean(vertical_edge_strength)*mean_threshold, color='black', linestyle='--', alpha=0.7)
+    #     axs[1, 1].set_xlabel('Column Pixel Index')
+    #     axs[1, 1].set_ylabel('Edge Strength')
 
-        axs[2, 0].imshow(edges, cmap='gray')
-        axs[2, 0].set_title('Canny Edges and Detected Edges')
-        axs[2, 0].axhline(y=top_edge, color='red', linestyle='--', alpha=0.5)
-        axs[2, 0].axhline(y=bottom_edge, color='red', linestyle='--', alpha=0.5)  
-        axs[2, 0].axvline(x=left_edge, color='blue', linestyle='--', alpha=0.5)
-        axs[2, 0].axvline(x=right_edge, color='blue', linestyle='--', alpha=0.5)
+    #     # axs[2, 0].imshow(canny_edges, cmap='gray')
+    #     # axs[2, 0].set_title('Canny Edges and Detected Edges')
+    #     # axs[2, 0].axhline(y=top_edge, color='red', linestyle='--', alpha=0.5)
+    #     # axs[2, 0].axhline(y=bottom_edge, color='red', linestyle='--', alpha=0.5)  
+    #     # axs[2, 0].axvline(x=left_edge, color='blue', linestyle='--', alpha=0.5)
+    #     # axs[2, 0].axvline(x=right_edge, color='blue', linestyle='--', alpha=0.5)
 
-        axs[2, 1].imshow(image, cmap='gray')
-        axs[2, 1].set_title('Detected Rectangle')
-        # Draw rectangle around detected edges
-        rect = plt.Rectangle((left_edge, top_edge), 
-                            right_edge - left_edge, 
-                            bottom_edge - top_edge, 
-                            fill=False, color='green', linewidth=2, alpha=0.7)
-        axs[2, 1].add_patch(rect)
+    #     axs[2, 0].imshow(image, cmap='gray')
+    #     axs[2, 0].set_title('Detected Rectangle')
+    #     # Draw rectangle around detected edges
+    #     rect = plt.Rectangle((left_edge, top_edge), 
+    #                         right_edge - left_edge, 
+    #                         bottom_edge - top_edge, 
+    #                         fill=False, color='green', linewidth=2, alpha=0.7)
+    #     axs[2, 0].add_patch(rect)
+    # else:
+    #     fig = None
+
+    return top_edge, bottom_edge, left_edge, right_edge, canny_edges, horizontal_edge_strength, vertical_edge_strength
+
+def plot_edge_detection_pipeline(image_path, top_edge, bottom_edge, left_edge, right_edge, 
+                                 canny_edges, horizontal_edge_strength, vertical_edge_strength, mean_threshold,
+                                 top_margin, bottom_margin, left_margin, right_margin):
+    
+    if isinstance(image_path, str):
+        image = png_to_array(image_path)
+    elif isinstance(image_path, np.ndarray):
+        image = image_path
     else:
-        fig = None
+        raise ValueError("Image path must be a string or a numpy array")
+    
+    fig, axs = plt.subplots(3, 2, figsize=(12, 8))
+    plt.subplots_adjust(hspace=0.5, wspace=0.4)
+    
+    axs[0, 0].imshow(image, cmap='gray')
+    axs[0, 0].set_title('Original calib_parallel_on.png with detected edges')
+    axs[0, 0].axhline(y=top_edge, color='red', linestyle='--', alpha=0.7)
+    axs[0, 0].axhline(y=bottom_edge, color='red', linestyle='--', alpha=0.7)
+    axs[0, 0].axvline(x=left_edge, color='blue', linestyle='--', alpha=0.7)
+    axs[0, 0].axvline(x=right_edge, color='blue', linestyle='--', alpha=0.7)
 
-    return top_edge, bottom_edge, left_edge, right_edge, fig
+    axs[0, 1].imshow(canny_edges, cmap='gray')
+    axs[0, 1].set_title('Canny Edge Method')
+
+    axs[1, 0].plot(np.sum(canny_edges, axis=1), color='green', alpha=0.7)
+    axs[1, 0].set_title('Horizontal Edge Strength')
+    axs[1, 0].grid(True, linestyle='--', alpha=0.5)
+    axs[1, 0].axvline(x=top_edge, color='red', linestyle='--', alpha=0.7)
+    axs[1, 0].axvline(x=bottom_edge, color='red', linestyle='--', alpha=0.7)
+    axs[1, 0].axhline(y=np.mean(horizontal_edge_strength)*mean_threshold, color='black', linestyle='--', alpha=0.7)
+    axs[1, 0].set_xlabel('Row Pixel Index')
+    axs[1, 0].set_ylabel('Edge Strength')
+
+    axs[1, 1].plot(np.sum(canny_edges, axis=0), color='green', alpha=0.7)
+    axs[1, 1].set_title('Vertical Edge Strength')
+    axs[1, 1].grid(True, linestyle='--', alpha=0.5)
+    axs[1, 1].axvline(x=left_edge, color='blue', linestyle='--', alpha=0.7)
+    axs[1, 1].axvline(x=right_edge, color='blue', linestyle='--', alpha=0.7)
+    axs[1, 1].axhline(y=np.mean(vertical_edge_strength)*mean_threshold, color='black', linestyle='--', alpha=0.7)
+    axs[1, 1].set_xlabel('Column Pixel Index')
+    axs[1, 1].set_ylabel('Edge Strength')
+
+    axs[2, 0].imshow(image, cmap='gray')
+    axs[2, 0].set_title('Detected Rectangle')
+    # Draw rectangle around detected edges
+    rect = plt.Rectangle((left_edge, top_edge), 
+                        right_edge - left_edge, 
+                        bottom_edge - top_edge, 
+                        fill=False, color='green', linewidth=2, alpha=0.7)
+    axs[2, 0].add_patch(rect)
+
+    new_left_edge = left_edge + left_margin
+    new_right_edge = right_edge + right_margin
+    new_top_edge = top_edge + top_margin
+    new_bottom_edge = bottom_edge + bottom_margin
+    rect_with_margins = plt.Rectangle((new_left_edge, new_top_edge), 
+                        new_right_edge - new_left_edge, 
+                        new_bottom_edge - new_top_edge, 
+                        fill=False, color='red', linewidth=2, alpha=0.7, linestyle='--')
+    axs[2, 0].add_patch(rect_with_margins)
+
+    # axs[2, 1].imshow(image, cmap='gray')
+    # axs[2, 1].set_title('Detected Rectangle with margins')
+    # rect = plt.Rectangle((left_edge + left_margin, top_edge + top_margin), 
+    #                     right_edge - left_edge - left_margin - right_margin, 
+    #                     bottom_edge - top_edge - top_margin - bottom_margin, 
+    #                     fill=False, color='green', linewidth=2, alpha=0.7)
+    # axs[2, 1].add_patch(rect)
+
+    return fig
 
 if __name__ == "__main__":
 
