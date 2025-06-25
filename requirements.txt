@@ -53,9 +53,13 @@ numpy==2.3.0
     #   pockels-efield-mapper (pyproject.toml)
     #   contourpy
     #   matplotlib
+    #   opencv-python
     #   pandas
     #   pydeck
+    #   scipy
     #   streamlit
+opencv-python==4.11.0.86
+    # via pockels-efield-mapper (pyproject.toml)
 packaging==24.2
     # via
     #   altair
@@ -97,11 +101,17 @@ rpds-py==0.25.1
     # via
     #   jsonschema
     #   referencing
+scipy==1.16.0
+    # via pockels-efield-mapper (pyproject.toml)
 six==1.17.0
     # via python-dateutil
 smmap==5.0.2
     # via gitdb
-streamlit==1.45.1
+streamlit==1.46.0
+    # via
+    #   pockels-efield-mapper (pyproject.toml)
+    #   streamlit-pdf-viewer
+streamlit-pdf-viewer==0.0.26
     # via pockels-efield-mapper (pyproject.toml)
 tenacity==9.1.2
     # via streamlit
