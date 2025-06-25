@@ -15,8 +15,8 @@ cropping:
   crop_x0: 210 # pixels
   crop_x1: 320 # pixels
 
-  left_border: 17 # pixels
-  right_border: 358 # pixels
-  top_border: 27 # pixels
-  bottom_border: 83 # pixels
+  left_border: 50 # pixels
+  right_border: 445 # pixels
+  top_border: 81 # pixels
+  bottom_border: 142 # pixels
 
