@@ -11,13 +11,14 @@ import pandas as pd
 
 # Internal imports
 from utils import remove_extension, get_metadata_from_filename
-from modules.pockels_math import alpha, E_ref, E_field_from_T
+from modules.pockels_math import alpha, E_ref, E_field_from_T, space_charge_density_from_slope
 from modules.image_process import (
     png_to_array,
     crop_image,
     impute_bad_pixels,
     cap_array,
-    find_bad_pixels
+    find_bad_pixels,
+    find_sensor_edges
 )
 from modules.plotting_modules import (
     plot_histogram,
@@ -42,12 +43,24 @@ elif config_select == "CZT-10mm":
     with open("config/CZT_10mm.toml", "rb") as f:
         config = tomllib.load(f)
         
-px_to_mm = 2.0/69.0 # mm/pixel
-
 if "figure_Efield_profile" not in st.session_state:
     st.session_state.figure_Efield_profile = None
 if "mat_fig" not in st.session_state:
     st.session_state.mat_fig = None
+if "bounding_box" not in st.session_state:
+    st.session_state.bounding_box = None
+if "px_to_meters" not in st.session_state:
+    st.session_state.px_to_meters = None
+
+@st.cache_data
+def find_sensor_edges_cached(
+    image, edge_threshold1=50, edge_threshold2=100, mean_threshold=6.0, plot=True):
+    return find_sensor_edges(image, 
+                             edge_threshold1=edge_threshold1, 
+                             edge_threshold2=edge_threshold2, 
+                             mean_threshold=mean_threshold,
+                             plot=plot)
+
 
 with st.sidebar: # Figure parameters
     sensor_id = st.text_input("Sensor ID", value="")
@@ -117,9 +130,9 @@ with st.expander("Cropping and Boundary Selection"):
         top_border = st.number_input("Top border", min_value=0, max_value=size_y, value=config["box_top"])
     with col4:
         bottom_border = st.number_input("Bottom border", min_value=0, max_value=size_y, value=config["box_bottom"])
-    bounding_box = [left_border, top_border, right_border, bottom_border]
+    st.session_state.bounding_box = [left_border, top_border, right_border, bottom_border]
         
-    apply_bounding_box = st.checkbox("Apply bounding box", value=True)
+    apply_bounding_box = st.checkbox("Apply manual bounding box", value=True)
 
 data_source = st.radio("Data source", 
                        options=["Data Uploader", "Sample Data"], 
@@ -147,12 +160,8 @@ elif data_source == "Sample Data":
         uploaded_calib_files = []
         uploaded_data_files = []
 
-with st.expander("Check Data"):
-    st.write(f"Number of calibration files: {len(uploaded_calib_files)}")
-    st.write(f"Number of bias files: {len(uploaded_data_files)}")
-    
-calib_img_arrays = {}
 
+calib_img_arrays = {}
 
 #######################
 ### CALIBRATION PROCESSING ###
@@ -175,6 +184,7 @@ if uploaded_calib_files:
             all_bad_pixels.extend(bad_pixels)
             if fix_bad_pixels:
                 img_array = impute_bad_pixels(img_array, bad_pixels)
+            
 
         calib_img_arrays[remove_extension(uploaded_calib_file.name)] = img_array
 
@@ -182,8 +192,7 @@ if uploaded_calib_files:
             vmin, vmax = np.percentile(img_array, q=global_range_pctl)
             color_range = st.slider("Color range", min_value=0.0, max_value=65500.0, value=[vmin, vmax])
             calib_fig = heatmap_plot_with_bounding_box(
-                img_array, f"{uploaded_calib_file.name}", color_map, color_range, 
-                fig_height=fig_height, bounding_box=bounding_box
+                img_array, f"{uploaded_calib_file.name}", color_map, color_range, fig_height=fig_height
             )
 
             st.plotly_chart(calib_fig)
@@ -214,13 +223,44 @@ if calib_img_arrays:
                 color_range = st.slider("Color range", min_value=0.0, max_value=65500.0, value=[vmin, vmax])
                 st.plotly_chart(heatmap_plot_with_bounding_box(
                     calib_parallel_minus_cross, "Parallel minus Cross", color_map, color_range, 
-                    fig_height=fig_height, bounding_box=bounding_box))
+                    fig_height=fig_height))
     except Exception as e:
         print(f"Error: {e}")
         st.warning(f"Error: {e}")
         st.warning("Not all calibration images are uploaded")
 
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        apply_edge_detection = st.checkbox("Apply edge detection", value=False)
+        top_margin = st.number_input("Top margin", min_value=-20, max_value=20, value=0)
+    with col2:
+        edge_threshold1 = st.number_input("Edge threshold 1", min_value=0, max_value=1000, value=50)
+        bottom_margin = st.number_input("Bottom margin", min_value=-20, max_value=20, value=0)
+    with col3:
+        edge_threshold2 = st.number_input("Edge threshold 2", min_value=0, max_value=1000, value=200)
+        left_margin = st.number_input("Left margin", min_value=-20, max_value=20, value=0)
+    with col4:
+        mean_threshold = st.number_input("Mean threshold", min_value=0.0, max_value=10.0, value=3.0)
+        right_margin = st.number_input("Right margin", min_value=-20, max_value=20, value=0)
+    if apply_edge_detection:
+        top_edge, bottom_edge, left_edge, right_edge, fig = \
+            find_sensor_edges_cached(calib_img_arrays["calib_parallel_on"], 
+                                    edge_threshold1=edge_threshold1, 
+                                    edge_threshold2=edge_threshold2, 
+                                    mean_threshold=mean_threshold,
+                                    plot=True)
+        with st.expander("Edge Detection"):
+            st.write(f"top_edge: {top_edge}, bottom_edge: {bottom_edge}, left_edge: {left_edge}, right_edge: {right_edge}")
+            bounding_box = [left_edge + left_margin, 
+                            top_edge + top_margin, 
+                            right_edge + right_margin, 
+                            bottom_edge + bottom_margin]
+            st.session_state.bounding_box = bounding_box
+            st.session_state.px_to_meters = (2e-3)/abs(bottom_edge - top_edge)
+            st.pyplot(fig)
 
+
+st.divider()
 ###########################################
 ### DATA PROCESSING ######################
 ###########################################
@@ -241,7 +281,11 @@ with col2:
     show_transmission_image = st.checkbox("Show transmission image", value=False, key=f"show_transmission_image")
 with col3:
     calculate_E_field = st.checkbox("Calculate E-field", value=True, key=f"do_E_field")
-    row_avg_E_field = st.checkbox("Show row-wise average E-field", value=True, key=f"row_avg_E_field")
+    calculate_row_avg_E_field = st.checkbox("Show row-wise average E-field", value=True, key="row_avg_E_field")
+with col4:
+    cathode_margin = st.number_input("Cathode margin (pixels)", min_value=-20, max_value=20, value=0)
+    anode_margin = st.number_input("Anode margin (pixels)", min_value=-20, max_value=20, value=0)
+
 with st.sidebar:
     def format_func(option):
         mapping = {
@@ -289,7 +333,7 @@ if uploaded_data_files:
                                     key=f"raw_image_color_range_{filename}")
             img_fig = heatmap_plot_with_bounding_box(
                 img_array, f"{uploaded_data_file.name}", color_map, color_range, 
-                fig_height=fig_height, bounding_box=bounding_box
+                fig_height=fig_height, bounding_box=st.session_state.bounding_box
             )
    
             raw_image_plotly_figures[filename] = img_fig
@@ -301,10 +345,10 @@ if uploaded_data_files:
                                             key=f"numerator_color_range_{filename}")
                     numerator_heatmap = heatmap_plot_with_bounding_box(
                         numerator, f"Numerator_{uploaded_data_file.name}", color_map, color_range, 
-                        fig_height=fig_height, bounding_box=bounding_box)
+                        fig_height=fig_height, bounding_box=st.session_state.bounding_box)
                     denominator_heatmap = heatmap_plot_with_bounding_box(
                         denominator, f"Denominator_{uploaded_data_file.name}", color_map, color_range, 
-                        fig_height=fig_height, bounding_box=bounding_box)
+                        fig_height=fig_height, bounding_box=st.session_state.bounding_box)
                     st.plotly_chart(numerator_heatmap)
                     st.plotly_chart(denominator_heatmap)
 
@@ -322,7 +366,7 @@ if uploaded_data_files:
                         color_map,
                         color_range,
                         fig_height=fig_height,
-                        bounding_box=bounding_box,
+                        bounding_box=st.session_state.bounding_box,
                     )
                     st.plotly_chart(T_fig)
 
@@ -338,7 +382,7 @@ if uploaded_data_files:
                         color_map_E_field,
                         color_range,
                         fig_height=fig_height,
-                        bounding_box=bounding_box,
+                        bounding_box=st.session_state.bounding_box,
                     )
                     E_fig.update_layout(
                         coloraxis_colorbar=dict(
@@ -347,23 +391,23 @@ if uploaded_data_files:
                     st.plotly_chart(E_fig)
 
                     # Plot row-wise average of E-field within bounding box
-                    if bounding_box and row_avg_E_field:
+                    if st.session_state.bounding_box and calculate_row_avg_E_field:
                         size_image = np.shape(E_field_array)
                         # Extract the region within bounding box
-                        x0, y0, x1, y1 = bounding_box
+                        x0, y0, x1, y1 = st.session_state.bounding_box
                         # Ensure bounding box doesn't exceed image dimensions
                         x0 = max(0, min(x0, size_image[1]-1))
                         x1 = max(0, min(x1, size_image[1]-1))
-                        y0 = max(0, min(y0, size_image[0]-1))
-                        y1 = max(0, min(y1, size_image[0]-1))
+                        y0 = max(0, min(y0, size_image[0]-1))+cathode_margin
+                        y1 = max(0, min(y1, size_image[0]-1))+anode_margin
                         try:
                             E_field_roi = E_field_array[y0:y1, x0:x1]
                         except Exception as e:
                             print(f"Error: {e}")
                             st.warning(f"Error: {e}")
-                            st.write(f"Error: Bounding box exceeds image dimensions")
+                            st.write("Error: Bounding box exceeds image dimensions")
                             st.write(f"Size of image: {size_image}")
-                            st.write(f"Bounding box: {bounding_box}")
+                            st.write(f"Bounding box: {st.session_state.bounding_box}")
                             st.write(f"Adjusted bounding box: {x0}, {x1}, {y0}, {y1}")
 
                         # Calculate row-wise average
@@ -449,7 +493,7 @@ with st.expander("Row-wise Average E-field", expanded=True):
             ax.set_ylim([ylim_min, ylim_max])  # Set minimum y value to 0 while keeping auto maximum
         ax.set_xlabel('Row position (pixels)', fontsize=matplot_axis_label_size)
         ax.set_ylabel('Average E-field (V/m)', fontsize=matplot_axis_label_size)
-        ax.set_title(f'Row-wise Average E-field', fontsize=matplot_axis_label_size)
+        ax.set_title('Row-wise Average E-field', fontsize=matplot_axis_label_size)
         ax.grid(True, alpha=0.5)
         ax.ticklabel_format(axis='y', style='sci', scilimits=(0,0))
         ax.tick_params(axis='both', which='major', labelsize=matplot_tick_label_size)
@@ -461,29 +505,29 @@ with st.expander("Row-wise Average E-field", expanded=True):
     else:
         st.warning("No row-wise average E-field data available")
     
+
+    # col1, col2, col3, col4 = st.columns(4)
+    # with col1:
+        
     if row_avg_E_field_arrays:
         # Convert row-wise E-field data to pandas DataFrame
         df_list = []
         for filename, row_data in row_avg_E_field_arrays.items():
             # Calculate gradient on the raw numpy arrays
-            row_indices = np.array(row_data['row_indices'])
-            e_field_values = np.array(row_data['E_row_avg'])
+            row_indices = np.array(row_data['row_indices'])[edge_margin:-edge_margin]
+            e_field_values = np.array(row_data['E_row_avg'])[edge_margin:-edge_margin]
             slope_values = np.gradient(e_field_values, row_indices)
             mean_slope = np.mean(slope_values)
-            slope_m = mean_slope / (px_to_mm*1e-3)
-            epsilon_0 = 8.8541878128e-12 # C^2/(N*m^2)
-            e_coulomb = 1.60217663e-19 # C
-            rho = (-1)*slope_m*epsilon_0*1e-6/(e_coulomb) # 1/m^3
+            rho = space_charge_density_from_slope(mean_slope, st.session_state.px_to_meters)
             
             df = pd.DataFrame({
                 # 'Row Indices': [row_indices],
                 # 'E-field (V/m)': [e_field_values],
                 # 'slope': [slope_values],
                 'index': [filename.split('_')[-1]],
-                'slope [E/pixel]': [mean_slope],
-                'pixel2mm': [px_to_mm],
-                'rho [1/m^3]': [rho],
-                'rho_scientific': [f"{rho:.2e}"],
+                'slope [dE/pixel]': [mean_slope],
+                'pixel2meters': [st.session_state.px_to_meters],
+                'rho [e/cm^3]': [f"{rho:.2e}"],
                 'Filename': [filename]
             })
             df_list.append(df)
@@ -514,7 +558,7 @@ with st.expander("Efield Matplotlib Plots", expanded=True):
                                                     color_range_radio, 
                                                     color_min, color_max, 
                                                     apply_bounding_box, 
-                                                    bounding_box,
+                                                    st.session_state.bounding_box,
                                                     box_color)
         # Add colorbar title and set scientific notation
         for ax in st.session_state.mat_fig.axes:
@@ -524,10 +568,10 @@ with st.expander("Efield Matplotlib Plots", expanded=True):
                 ax.ticklabel_format(style='sci', scilimits=(0,0))
         # Add text annotations for cathode and anode
         for ax in st.session_state.mat_fig.axes:
-            ax.text(bounding_box[0], bounding_box[1]-5, 'cathode', 
+            ax.text(st.session_state.bounding_box[0], st.session_state.bounding_box[1]-5, 'cathode', 
                     color=box_color, fontsize=matplot_tick_label_size,
                     horizontalalignment='left')
-            ax.text(bounding_box[0], bounding_box[3]+5, 'anode',
+            ax.text(st.session_state.bounding_box[0], st.session_state.bounding_box[3]+5, 'anode',
                     color=box_color, fontsize=matplot_tick_label_size, 
                     horizontalalignment='left')
         st.session_state.mat_fig.suptitle(f"E-field heatmaps {color_range_radio}-scale color range", fontsize=15, y=1.05)

@@ -3,7 +3,8 @@ import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
 import plotly.express as px
-import time
+import cv2
+from scipy.signal import find_peaks
 
 
 def png_to_array(image_path, dtype=np.float32):
@@ -218,54 +219,248 @@ def remove_low_value_pixels(img_array):
     img_array[img_array == 0] = 1.0
     return img_array
 
-
-# if __name__ == "__main__":
-#     image_dir = r"R:\Pockels_data\NEXT GEN POCKELS\pockels_run_2025-01-13"
-#     crop_range_y = (190, 320)
-#     crop_range_x = (5, 635)
-
-#     calib_parallel_on = crop_image(png_to_array(os.path.join(image_dir, "calib_parallel_on.png")),
-#                                    crop_range_x, crop_range_y)
-#     vmin = np.percentile(calib_parallel_on, 10)
-#     vmax = np.percentile(calib_parallel_on, 90)
-#     print("Number of dead pixels: ", len(find_dead_pixels(calib_parallel_on)))
-#     print(f"Dead pixels: {find_dead_pixels(calib_parallel_on)}")
-#     plot_image_colormap(calib_parallel_on, title="Calibrated Parallel On", color_range=(vmin, vmax))
-
-#     calib_parallel_on = impute_dead_pixels(calib_parallel_on, find_dead_pixels(calib_parallel_on))
-#     print("Number of dead pixels: ", len(find_dead_pixels(calib_parallel_on)))
-#     print(f"Dead pixels: {find_dead_pixels(calib_parallel_on)}")
-#     plot_image_colormap(calib_parallel_on, title="Calibrated Parallel On", color_range=(vmin, vmax))
-
-#     calib_parallel_off = crop_image(png_to_array(os.path.join(image_dir, "calib_parallel_off.png")),
-#                                    crop_range_x, crop_range_y)
-#     print(f"Dead pixels: {find_dead_pixels(calib_parallel_off)}")
-#     plot_image_colormap(calib_parallel_off, title="Calibrated Parallel Off")
+def canny_edge_method(image, threshold1=100, threshold2=300):
+    # Convert to uint8 if needed
+    if image.dtype != np.uint8:
+        image = ((image - image.min()) / (image.max() - image.min()) * 255).astype(np.uint8)
+    
+    # find the edges of the sensor
+    edges = cv2.Canny(image, threshold1, threshold2)
+    return edges
 
 
-#     calib_cross_on = crop_image(png_to_array(os.path.join(image_dir, "calib_cross_on.png")),
-#                                    crop_range_x, crop_range_y)
-#     print(f"Dead pixels: {find_dead_pixels(calib_cross_on)}")
-#     plot_image_colormap(calib_cross_on, title="Calibrated Cross On")
+def find_horizontal_edges(image, edge_threshold1=100, edge_threshold2=300, mean_threshold=1.0):
+    """
+    Find the most likely horizontal edges of a bright rectangle in an image.
+    
+    Args:
+        image: Input image array
+        threshold1: Lower threshold for Canny edge detection
+        threshold2: Upper threshold for Canny edge detection
+    
+    Returns:
+        top_edge: Row index of the top edge
+        bottom_edge: Row index of the bottom edge
+    """
+    # Get edges using existing function
+    edges = canny_edge_method(image, edge_threshold1, edge_threshold2)
+    
+    # Sum edges horizontally to find rows with strong horizontal edges
+    horizontal_edge_strength = np.sum(edges, axis=1)
 
-# # Find and process HV files
-# hv_files = [f for f in os.listdir(image_dir) if f.startswith('hv_')]
-# print(f"\nFound {len(hv_files)} HV files:")
-# for hv_file in sorted(hv_files[0:2]):
-#     print(f"Processing {hv_file}")
-#     hv_array = png_to_array(os.path.join(image_dir, hv_file))
-#     plot_image_colormap(hv_array, title=f"High Voltage Bias - {hv_file}", color_range=(vmin, vmax))
+    min_separation = 50
+    
+    # Find peaks in the horizontal edge strength
+    peaks = {}
+    for i, value in enumerate(horizontal_edge_strength):
+        if (value > horizontal_edge_strength[i-1] and 
+            value > horizontal_edge_strength[i+1] and
+            value > np.mean(horizontal_edge_strength) * mean_threshold):
+            peaks[i] = value
+    
+    filtered_peaks = {} # Remove peaks that are too close to each other
+    for peak in peaks.keys():
+        if not any(abs(peak - existing) < min_separation for existing in filtered_peaks):
+            filtered_peaks[peak] = peaks[peak]
+    
+    # Find the 2 largest peak values
+    sorted_peaks = dict(sorted(filtered_peaks.items(), key=lambda x: x[1], reverse=True))
+    top_peaks = {k: sorted_peaks[k] for k in list(sorted_peaks.keys())[:2]}
 
-#     numerator = hv_array - calib_cross_on
-#     denominator = calib_parallel_on - calib_parallel_off
-#     plot_image_colormap(numerator, title=f"Numerator - {hv_file}")
-#     plot_image_colormap(denominator, title=f"Denominator - {hv_file}")
-#     T_array = numerator / denominator
-#     # Clip transmission values to valid arcsin range
-#     T_array[T_array > 1.0] = 0.99
-#     T_array[T_array < -1.0] = -0.99
-#     plot_image_colormap(T_array, title=f"Transmission - {hv_file}")
+    if len(top_peaks) < 2:
+        raise ValueError("Not enough peaks found")
+    
+    top_edge = min(top_peaks.keys())
+    bottom_edge = max(top_peaks.keys())
+    
+    return top_edge, bottom_edge, horizontal_edge_strength
+
+def find_horizontal_edges_robust(image, edge_threshold1=100, edge_threshold2=300, mean_threshold=1.0):
+    """
+    DON'T USE THIS FUNCTION
+    """
+    # Get edges
+    edges = canny_edge_method(image, edge_threshold1, edge_threshold2)
+    
+    # Method 1: Sum edges horizontally
+    horizontal_edge_strength = np.sum(edges, axis=1)
+    
+    # Method 2: Find where intensity changes significantly (gradient)
+    if image.dtype != np.uint8:
+        image_uint8 = ((image - image.min()) / (image.max() - image.min()) * 255).astype(np.uint8)
+    else:
+        image_uint8 = image
+    
+    # Calculate gradient magnitude
+    grad_y = cv2.Sobel(image_uint8, cv2.CV_64F, 0, 1, ksize=3)
+    grad_magnitude = np.abs(grad_y)
+    gradient_strength = np.sum(grad_magnitude, axis=1)
+    
+    # Combine both methods
+    combined_strength = horizontal_edge_strength * gradient_strength
+    
+    # Find peaks with minimum separation
+    min_separation = 10  # Minimum pixels between edges
+    peaks = []
+    
+    # Find local maxima
+    for i in range(1, len(combined_strength) - 1):
+        if (combined_strength[i] > combined_strength[i-1] and 
+            combined_strength[i] > combined_strength[i+1] and
+            combined_strength[i] > np.mean(combined_strength) * mean_threshold):
+            peaks.append(i)
+    
+    # Filter peaks to ensure minimum separation
+    filtered_peaks = []
+    for peak in peaks:
+        if not any(abs(peak - existing) < min_separation for existing in filtered_peaks):
+            filtered_peaks.append(peak)
+    
+    if len(filtered_peaks) < 2:
+        # Fallback: use the two highest values
+        sorted_indices = np.argsort(combined_strength)[::-1]
+        filtered_peaks = sorted_indices[:2]
+        filtered_peaks.sort()
+    
+    # Return top and bottom edges
+    top_edge = filtered_peaks[0]
+    bottom_edge = filtered_peaks[-1]
+    
+    return top_edge, bottom_edge, combined_strength
+
+def find_vertical_edges(image, edge_threshold1=100, edge_threshold2=300, mean_threshold=5.0):
+    """
+    Find the most likely vertical edges of a bright rectangle in an image.
+    
+    Args:
+        image: Input image array
+        threshold1: Lower threshold for Canny edge detection
+        threshold2: Upper threshold for Canny edge detection
+    
+    Returns:
+        left_edge: Column index of the left edge
+        right_edge: Column index of the right edge
+    """
+    # Get edges using existing function
+    edges = canny_edge_method(image, edge_threshold1, edge_threshold2)
+    # Sum edges vertically to find columns with strong vertical edges
+    vertical_edge_strength = np.sum(edges, axis=0).astype(np.float32)
+    # Find peaks in the vertical edge strength
+    peaks = {}
+    for idx, value in enumerate(vertical_edge_strength):
+        if (value > vertical_edge_strength[idx-1] and 
+            value > vertical_edge_strength[idx+1] and
+            value > np.mean(vertical_edge_strength) * mean_threshold):
+            peaks[idx] = value
+
+    min_separation = 200
+    filtered_peaks = {}
+    for peak in peaks.keys():
+        if not any(abs(peak - existing) < min_separation for existing in filtered_peaks):
+            filtered_peaks[peak] = peaks[peak]
+
+    # Find the 2 largest peak values (top peaks)
+    sorted_peaks = dict(sorted(filtered_peaks.items(), key=lambda x: x[1], reverse=True))
+    top_peaks = {k: sorted_peaks[k] for k in list(sorted_peaks.keys())[:2]}
+
+    if len(top_peaks) < 2:
+        raise ValueError("Not enough peaks found")
+    
+    # Return the left and right edges
+    left_edge = min(top_peaks.keys())
+    right_edge = max(top_peaks.keys())
+    
+    return left_edge, right_edge, vertical_edge_strength
 
 
-#     E_field = np.arcsin(T_array)
-#     plot_image_colormap(E_field, title=f"Electric Field - {hv_file}")
+def find_sensor_edges(image_path, 
+                      edge_threshold1=50, 
+                      edge_threshold2=100, 
+                      mean_threshold=6.0,
+                      plot=True):
+    if isinstance(image_path, str):
+        image = png_to_array(image_path)
+    elif isinstance(image_path, np.ndarray):
+        image = image_path
+    else:
+        raise ValueError("Image path must be a string or a numpy array")
+    
+    edges = canny_edge_method(image, threshold1=edge_threshold1, threshold2=edge_threshold2)
+    # Find both horizontal and vertical edges
+    top_edge, bottom_edge, horizontal_edge_strength = find_horizontal_edges(image, 
+                                                  edge_threshold1=edge_threshold1, 
+                                                  edge_threshold2=edge_threshold2, 
+                                                  mean_threshold=mean_threshold)
+    left_edge, right_edge, vertical_edge_strength = find_vertical_edges(image, 
+                                                edge_threshold1=edge_threshold1, 
+                                                edge_threshold2=edge_threshold2, 
+                                                mean_threshold=mean_threshold)
+
+    if plot:
+        fig, axs = plt.subplots(3, 2, figsize=(12, 8))
+        
+        axs[0, 0].imshow(image, cmap='gray')
+        axs[0, 0].set_title('Original Image')
+        axs[0, 0].axhline(y=top_edge, color='red', linestyle='--', alpha=0.7)
+        axs[0, 0].axhline(y=bottom_edge, color='red', linestyle='--', alpha=0.7)
+        axs[0, 0].axvline(x=left_edge, color='blue', linestyle='--', alpha=0.7)
+        axs[0, 0].axvline(x=right_edge, color='blue', linestyle='--', alpha=0.7)
+
+        axs[0, 1].imshow(edges, cmap='gray')
+        axs[0, 1].set_title('Canny Edge Method')
+
+        axs[1, 0].plot(np.sum(edges, axis=1), color='green', alpha=0.7)
+        axs[1, 0].set_title('Horizontal Edge Strength')
+        axs[1, 0].grid(True, linestyle='--', alpha=0.5)
+        axs[1, 0].axvline(x=top_edge, color='red', linestyle='--', alpha=0.7)
+        axs[1, 0].axvline(x=bottom_edge, color='red', linestyle='--', alpha=0.7)
+        axs[1, 0].axhline(y=np.mean(horizontal_edge_strength)*mean_threshold, color='black', linestyle='--', alpha=0.7)
+        axs[1, 0].set_xlabel('Row Index')
+        axs[1, 0].set_ylabel('Edge Strength')
+
+        axs[1, 1].plot(np.sum(edges, axis=0), color='green', alpha=0.7)
+        axs[1, 1].set_title('Vertical Edge Strength')
+        axs[1, 1].grid(True, linestyle='--', alpha=0.5)
+        axs[1, 1].axvline(x=left_edge, color='blue', linestyle='--', alpha=0.7)
+        axs[1, 1].axvline(x=right_edge, color='blue', linestyle='--', alpha=0.7)
+        axs[1, 1].axhline(y=np.mean(vertical_edge_strength)*mean_threshold, color='black', linestyle='--', alpha=0.7)
+        axs[1, 1].set_xlabel('Column Index')
+        axs[1, 1].set_ylabel('Edge Strength')
+
+        axs[2, 0].imshow(edges, cmap='gray')
+        axs[2, 0].set_title('Canny Edges and Detected Edges')
+        axs[2, 0].axhline(y=top_edge, color='red', linestyle='--', alpha=0.5)
+        axs[2, 0].axhline(y=bottom_edge, color='red', linestyle='--', alpha=0.5)  
+        axs[2, 0].axvline(x=left_edge, color='blue', linestyle='--', alpha=0.5)
+        axs[2, 0].axvline(x=right_edge, color='blue', linestyle='--', alpha=0.5)
+
+        axs[2, 1].imshow(image, cmap='gray')
+        axs[2, 1].set_title('Detected Rectangle')
+        # Draw rectangle around detected edges
+        rect = plt.Rectangle((left_edge, top_edge), 
+                            right_edge - left_edge, 
+                            bottom_edge - top_edge, 
+                            fill=False, color='green', linewidth=2, alpha=0.7)
+        axs[2, 1].add_patch(rect)
+    else:
+        fig = None
+
+    return top_edge, bottom_edge, left_edge, right_edge, fig
+
+if __name__ == "__main__":
+
+    # Load the image in grayscale
+    image_path = r'R:\Pockels_data\NEXT GEN POCKELS\Photo-Pockels_D420222_2025-06-20\calib_parallel_on.png'
+
+    edge_threshold1 = 50
+    edge_threshold2 = 100
+    mean_threshold = 6.0
+
+    top_edge, bottom_edge, left_edge, right_edge, fig = find_sensor_edges(image_path, 
+                                                                          edge_threshold1=edge_threshold1, 
+                                                                          edge_threshold2=edge_threshold2, 
+                                                                          mean_threshold=mean_threshold,
+                                                                          plot=True)
+
+    plt.tight_layout()
+    plt.show()
