@@ -18,7 +18,8 @@ from modules.image_process import (
     impute_bad_pixels,
     cap_array,
     find_bad_pixels,
-    find_sensor_edges
+    find_sensor_edges,
+    plot_edge_detection_pipeline
 )
 from modules.plotting_modules import (
     plot_histogram,
@@ -54,12 +55,11 @@ if "px_to_meters" not in st.session_state:
 
 @st.cache_data
 def find_sensor_edges_cached(
-    image, edge_threshold1=50, edge_threshold2=100, mean_threshold=6.0, plot=True):
+    image, edge_threshold1=50, edge_threshold2=100, mean_threshold=6.0):
     return find_sensor_edges(image, 
                              edge_threshold1=edge_threshold1, 
                              edge_threshold2=edge_threshold2, 
-                             mean_threshold=mean_threshold,
-                             plot=plot)
+                             mean_threshold=mean_threshold)
 
 
 with st.sidebar: # Figure parameters
@@ -231,26 +231,31 @@ if calib_img_arrays:
 
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        apply_edge_detection = st.checkbox("Apply edge detection", value=False)
-        top_margin = st.number_input("Top margin", min_value=-20, max_value=20, value=0)
+        apply_edge_detection = st.checkbox("Apply edge detection", value=True)
+        top_margin = st.number_input("Top margin", min_value=-50, max_value=50, value=0)
     with col2:
-        edge_threshold1 = st.number_input("Edge threshold 1", min_value=0, max_value=1000, value=50)
-        bottom_margin = st.number_input("Bottom margin", min_value=-20, max_value=20, value=0)
+        edge_threshold1 = st.number_input("Edge threshold 1", min_value=0, max_value=1000, value=80)
+        bottom_margin = st.number_input("Bottom margin", min_value=-50, max_value=50, value=0)
     with col3:
-        edge_threshold2 = st.number_input("Edge threshold 2", min_value=0, max_value=1000, value=200)
-        left_margin = st.number_input("Left margin", min_value=-20, max_value=20, value=0)
+        edge_threshold2 = st.number_input("Edge threshold 2", min_value=0, max_value=1000, value=100)
+        left_margin = st.number_input("Left margin", min_value=-50, max_value=50, value=15)
     with col4:
-        mean_threshold = st.number_input("Mean threshold", min_value=0.0, max_value=10.0, value=3.0)
-        right_margin = st.number_input("Right margin", min_value=-20, max_value=20, value=0)
+        mean_threshold = st.number_input("Mean threshold", min_value=0.0, max_value=50.0, value=8.0)
+        right_margin = st.number_input("Right margin", min_value=-50, max_value=50, value=-15)
     if apply_edge_detection:
-        top_edge, bottom_edge, left_edge, right_edge, fig = \
+        top_edge, bottom_edge, left_edge, right_edge, canny_edges, horizontal_edge_strength, vertical_edge_strength = \
             find_sensor_edges_cached(calib_img_arrays["calib_parallel_on"], 
                                     edge_threshold1=edge_threshold1, 
                                     edge_threshold2=edge_threshold2, 
-                                    mean_threshold=mean_threshold,
-                                    plot=True)
+                                    mean_threshold=mean_threshold)
+        fig = plot_edge_detection_pipeline(calib_img_arrays["calib_parallel_on"], 
+                                           top_edge, bottom_edge, left_edge, right_edge, 
+                                           canny_edges, 
+                                           horizontal_edge_strength, 
+                                           vertical_edge_strength, 
+                                           mean_threshold,
+                                           top_margin, bottom_margin, left_margin, right_margin)
         with st.expander("Edge Detection"):
-            st.write(f"top_edge: {top_edge}, bottom_edge: {bottom_edge}, left_edge: {left_edge}, right_edge: {right_edge}")
             bounding_box = [left_edge + left_margin, 
                             top_edge + top_margin, 
                             right_edge + right_margin, 
@@ -258,6 +263,9 @@ if calib_img_arrays:
             st.session_state.bounding_box = bounding_box
             st.session_state.px_to_meters = (2e-3)/abs(bottom_edge - top_edge)
             st.pyplot(fig)
+            st.write({"left_edge": left_edge, "top_edge": top_edge, "right_edge": right_edge, "bottom_edge": bottom_edge})
+            st.write({"bounding_box": bounding_box})
+            st.write(f"px_to_meters: {st.session_state.px_to_meters}")
 
 
 st.divider()
@@ -414,8 +422,10 @@ if uploaded_data_files:
                         # Calculate row-wise average
                         row_avg = np.mean(E_field_roi, axis=1)
                         row_indices = np.arange(y0, y1)
+                        distance_mm = (row_indices - y0)*st.session_state.px_to_meters*1e3
                         row_avg_E_field_arrays[filename] = {"E_row_avg": row_avg, 
-                                                            "row_indices": row_indices}
+                                                            "row_indices": row_indices,
+                                                            "distance_mm": distance_mm}
                         if show_Efield_profile:
                             # Create figure for row average plot
                             fig, ax = plt.subplots(figsize=(matplot_figure_width, matplot_figure_height))
@@ -441,7 +451,7 @@ if uploaded_data_files:
                             st.pyplot(fig)
 
 with st.expander("Row-wise Average E-field", expanded=True):
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
     with col1:
         auto_ylim = st.checkbox("Auto y-axis limits", value=False)
     with col2:
@@ -452,6 +462,8 @@ with st.expander("Row-wise Average E-field", expanded=True):
         ylim_max = st.number_input("E-field upper limit (V/m)", min_value=0.0, value=Emax)
     with col5:
         edge_margin = st.number_input("Edge margin (pixels)", min_value=0, max_value=20, value=5)
+    with col6:
+        convert_to_mm = st.checkbox("Convert row indices to mm", value=True)
     if row_avg_E_field_arrays:
         st.session_state.figure_Efield_profile, ax = plt.subplots(figsize=(matplot_figure_width, matplot_figure_height))
         # Invert the color order by reversing the color array
@@ -459,9 +471,13 @@ with st.expander("Row-wise Average E-field", expanded=True):
         # Reverse the order of items for plotting
         for i, (filename, row_avg_E_field_array) in enumerate(
             reversed(list(row_avg_E_field_arrays.items()))):
-            
-            ax.plot(row_avg_E_field_array['row_indices'], row_avg_E_field_array['E_row_avg'], '-',
+            if convert_to_mm:
+                row_indices = row_avg_E_field_array['distance_mm']
+            else:
+                row_indices = row_avg_E_field_array['row_indices']
+            ax.plot(row_indices, row_avg_E_field_array['E_row_avg'], '-',
                     label=f'{filename}', color=colors[i])
+            
         
         long_text = (
             "$T = \\frac{I_{bias}-I_{cross}}{I_{parallel}-I_{off}} = \\sin^2(\\alpha E)$\n\n"
@@ -489,11 +505,16 @@ with st.expander("Row-wise Average E-field", expanded=True):
                     transform=fig.transFigure)
         
         # Add shaded margins of 5 pixels on left and right
-        ax.axvspan(y0, y0 + edge_margin, color='orange', alpha=0.2, label='cathode')  # Left margin
-        ax.axvspan(y1 - edge_margin, y1, color='green', alpha=0.2, label='anode')  # Right margin
+        if convert_to_mm:
+            ax.axvspan(0, 0.2, color='orange', alpha=0.2, label='cathode')  # Left margin
+            ax.axvspan(distance_mm[-1] - 0.2, distance_mm[-1], color='green', alpha=0.2, label='anode')  # Right margin
+            ax.set_xlabel('Distance from cathode (mm)', fontsize=matplot_axis_label_size)
+        else:
+            ax.axvspan(y0, y0 + edge_margin, color='orange', alpha=0.2, label='cathode')  # Left margin
+            ax.axvspan(y1 - edge_margin, y1, color='green', alpha=0.2, label='anode')  # Right margin
+
         if not auto_ylim:
             ax.set_ylim([ylim_min, ylim_max])  # Set minimum y value to 0 while keeping auto maximum
-        ax.set_xlabel('Row position (pixels)', fontsize=matplot_axis_label_size)
         ax.set_ylabel('Average E-field (V/m)', fontsize=matplot_axis_label_size)
         ax.set_title('Row-wise Average E-field', fontsize=matplot_axis_label_size)
         ax.grid(True, alpha=0.5)
