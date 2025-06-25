@@ -65,11 +65,11 @@ def find_sensor_edges_cached(
 with st.sidebar: # Figure parameters
     sensor_id = st.text_input("Sensor ID", value="")
     st.subheader("Matplotlib Figure Settings")
-    fig_height = st.slider("Figure height", min_value=100, max_value=1000, value=300)
+    fig_height = st.slider("Figure height", min_value=100, max_value=1000, value=450)
     col1, col2 = st.columns(2)  
     with col1:
         matplot_axis_label_size = st.slider("Axis label size", min_value=1, max_value=20, value=10)
-        matplot_tick_label_size = st.slider("Tick label size", min_value=1, max_value=20, value=10)
+        matplot_tick_label_size = st.slider("Tick label size", min_value=1, max_value=20, value=8)
         color_map = st.selectbox(
             "Color map Raw Image", options=["jet", "viridis", "magma", "plasma", "inferno", "cividis"],
             index=1)
@@ -147,8 +147,8 @@ if data_source == "Data Uploader":
         uploaded_data_files = st.file_uploader(
             "Upload Bias Images", type=["png"], accept_multiple_files=True)
 elif data_source == "Sample Data":
-    calib_data_folder = Path("SAMPLE_DATA/cropped_images/calib")
-    bias_data_folder = Path("SAMPLE_DATA/cropped_images/bias")
+    calib_data_folder = Path("SAMPLE_DATA/LED_data/calib")
+    bias_data_folder = Path("SAMPLE_DATA/LED_data/bias")
     
     # Check if sample data directories exist (they won't in deployed environment)
     if calib_data_folder.exists() and bias_data_folder.exists():
@@ -524,21 +524,21 @@ with st.expander("Row-wise Average E-field", expanded=True):
                 # 'Row Indices': [row_indices],
                 # 'E-field (V/m)': [e_field_values],
                 # 'slope': [slope_values],
-                'index': [filename.split('_')[-1]],
-                'slope [dE/pixel]': [mean_slope],
-                'pixel2meters': [st.session_state.px_to_meters],
-                'rho [e/cm^3]': [f"{rho:.2e}"],
-                'Filename': [filename]
+                'filename': [filename],
+                'tag': [filename.split('_')[-1]],
+                'pixel2meters': [f"{st.session_state.px_to_meters:.3e}"],
+                'slope [dE/pixel]': [f"{mean_slope:.3e}"],
+                'rho [e/cm^3]': [f"{rho:.3e}"],
             })
             df_list.append(df)
         
         combined_df = pd.concat(df_list)
         st.dataframe(combined_df)
         st.download_button(
-            label="Download Row-wise Average E-field Data",
+            label="Download Space Charge Density Data Table",
             data=combined_df.to_csv(index=False),
-            file_name=f"{sensor_id}_row_avg_Efield_data.csv" \
-                if sensor_id else "row_avg_Efield_data.csv",
+            file_name=f"{sensor_id}_space_charge_density_data.csv" \
+                if sensor_id else "space_charge_density_data.csv",
             mime="text/csv"
         )
 
