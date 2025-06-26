@@ -58,7 +58,9 @@ numpy==2.3.0
     #   pydeck
     #   scipy
     #   streamlit
-opencv-python==4.11.0.86
+# opencv-python==4.11.0.86 # this is the full version of opencv-python, it cannot be installed on the server
+
+opencv-python-headless==4.11.0.86
     # via pockels-efield-mapper (pyproject.toml)
 packaging==24.2
     # via
